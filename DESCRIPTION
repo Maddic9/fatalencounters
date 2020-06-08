@@ -1,0 +1,23 @@
+Package: fatalencounters
+Type: Package
+Title: R Interface to Fatal Encounters Data
+Version: 0.1.0
+Author: Neal Marquez
+Maintainer: Neal Marquez <nmarquez@uw.edu>
+Description: R interface for streamlined use of the fatal encounters dataset
+    with appropriate population denominators.
+License: GPL (>= 2)
+Imports:
+    dplyr,
+    tibble,
+    stringr,
+    sf
+Suggests:
+    ggplot2,
+    shiny,
+    leaflet
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.0.0)
+RoxygenNote: 7.1.0
