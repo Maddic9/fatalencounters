@@ -10,6 +10,8 @@ library(tigris)
 library(sf)
 
 DF <- state_total_calculate()
+st_crs(state_sf) <- 4326
+
 nat_DF <- DF %>%
     group_by(YEAR) %>%
     summarize(
