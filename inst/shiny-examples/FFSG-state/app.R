@@ -7,20 +7,19 @@ library(DT)
 library(dplyr)
 library(fatalencounters)
 library(usmap)
-library(sf)
+library(here)
 
 DF <- state_total_calculate() %>%
-  mutate(death_rate = death_rate * 10) %>%
   filter(YEAR < 2020 & !is.na(YEAR))
-state_map <- us_map("states")
 
-nat_DF <- DF %>%
+DF <- DF %>%
     group_by(YEAR) %>%
     summarize(
         deaths = mean(deaths),
         death_rate = mean(death_rate)) %>%
     mutate(State = "National Average") %>%
-    filter(YEAR < 2020)
+    filter(YEAR < 2020) %>%
+  bind_rows(DF)
 
 #-------------------------------------------------------UI-----------------------------------------------------------------#
 
@@ -91,7 +90,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
 
              sidebarLayout(
                sidebarPanel(
-                 selectInput("state", "State", c(sort(c(state.name, "District of Columbia")), "United States"), selected = "Washington"),
+                 selectInput("state", "State", c(sort(c(state.name, "District of Columbia")), "National Average"), selected = "Washington"),
                  checkboxInput("all", "Display with other states", FALSE),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
@@ -190,7 +189,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                           h5("Map is shown for mean values, to select a year choose Select Year"),
                           checkboxInput("yearselect", "Select Year", FALSE),
                           conditionalPanel("input.yearselect",
-                                           sliderInput("year", "Year", 2000, max(DF$YEAR),
+                                           sliderInput("year", "Year", 2000, max(DF$YEAR, na.rm = T),
                                                        value = 2000,
                                                        animate = animationOptions(1500, TRUE),
                                                        sep = "") # BM: make the numbers look like years
@@ -266,10 +265,10 @@ server <- function(input, output, session) {
   #Plot for fatal encounter total or capita values by state
   output$permillplot <-
     renderPlot({
+      print(input$`per capita`)
         DF %>%
-            bind_rows(nat_DF) %>%
             filter(YEAR < 2020) %>%
-            mutate(out = ifelse(rep(input$capita, nrow(.)), death_rate, deaths)) %>%
+            mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
             mutate(col_ = case_when(
                 State == input$state ~ input$state,
                 State == "National Average" ~ "National Average",
@@ -282,7 +281,7 @@ server <- function(input, output, session) {
             geom_line() +
             theme_classic() +
             guides(alpha=FALSE) +
-            labs(x="Year", y=ifelse(input$capita, "Rate per 1 Million", "Count"),
+            labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
                  color="")
     })
   #Data table for fatal encounter total or capita values by state
@@ -297,44 +296,26 @@ server <- function(input, output, session) {
     renderPlot({
       if(input$yearselect){
         DF %>%
+          filter(State != "National Average") %>%
           filter(YEAR == input$year) %>%
           select(death_rate, fips = GEOID) %>%
           {plot_usmap(data=., values = "death_rate")} +
           scale_fill_distiller(
             limits = c(0, max(DF$death_rate, na.rm = TRUE)),
-            name = "Deaths per\nMillion",
+            name = "Deaths per\n100k",
             palette = "Spectral") +
           theme(legend.position = "right")
-          
-          # state_sf %>%
-          #     right_join(DF, by = "GEOID") %>%
-          #     filter(YEAR == input$year) %>%
-          #     filter(!(STUSPS %in% c("AK", "HI"))) %>%
-          #     ggplot() +
-          #     geom_sf(aes(fill=death_rate)) +
-          #     theme_void() +
-          #     labs(fill = "Deaths Per \n100k") +
-          #     scale_fill_distiller(palette = "Spectral")
       }else{
         DF %>%
+          filter(State != "National Average") %>%
           group_by(GEOID) %>%
           summarize(death_rate = mean(death_rate, na.rm = TRUE)) %>%
           rename(fips = GEOID) %>%
           {plot_usmap(data=., values = "death_rate")} +
           scale_fill_distiller(
-            name = "Deaths per\nMillion",
+            name = "Deaths per\n100k",
             palette = "Spectral") +
           theme(legend.position = "right")
-          # DF %>%
-          #     group_by(GEOID) %>%
-          #     summarize(death_rate = mean(death_rate)) %>%
-          #     {right_join(state_sf, ., by = "GEOID")} %>%
-          #     filter(!(STUSPS %in% c("AK", "HI"))) %>%
-          #     ggplot() +
-          #     geom_sf(aes(fill=death_rate)) +
-          #     theme_void() +
-          #     labs(fill = "Deaths Per \n100k") +
-          #     scale_fill_distiller(palette = "Spectral")
       }
     })
   #Interactive Leaflet Map
