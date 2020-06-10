@@ -73,14 +73,15 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              fluidPage(
                fluidRow(
                  column(10,
-                        h1("Counting Fatal Encounters")),
+                        h1("Trends: 2000-2019")),
                  column(2,
                           icon('question-circle', class='fa-2x helper-btn'),
                           tags$div(class="helper-box", style="display:none",
                                  p("View trends by state over the years
-                                    2000 to 2017. Plot and table tabs
+                                    2000 to 2019. The 'Plot' and 'Table' tabs
                                     allow you to switch between viewing
-                                    the data in a line plot or in a table.")),
+                                    the data graphically or tabulated by 
+                                    demographic attributes.")),
                         actionLink('cntleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
                         actionLink('cntright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), label=NULL)
 
@@ -100,13 +101,13 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                                      black. (US average is only
                                      shown for per capita values)")),
 
-                 checkboxInput("capita", "Calculate per capita (in millions)", TRUE),
+                 checkboxInput("per capita", "Calculate per 100K", TRUE),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
                                    p("When selected values are
                                      calculated as a number of
-                                     fatal events per million
-                                     people in the population.
+                                     fatalities per 100K
+                                     persons in the population.
                                      Otherwise displays total
                                      number of fatal events."))
                ),
@@ -129,7 +130,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  column(2,
                         icon('question-circle', class='fa-2x helper-btn'),
                         tags$div(class="helper-box", style="display:none",
-                            p("Displays total counts of fatal
+                            p("Displays total number of fatal
                               encounters in the US by demographic
                               (race, age, or gender).")),
                         actionLink('dsleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
