@@ -264,30 +264,58 @@ server <- function(input, output, session) {
   #Plot for fatal encounter total or capita values by state
   output$permillplot <-
     renderPlot({
-        DF %>%
+        if(input$all | input$state == "National Average"){
+          DF %>%
+              filter(YEAR < 2020) %>%
+              mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
+              mutate(col_ = case_when(
+                  State == input$state ~ input$state,
+                  State == "National Average" ~ "National Average",
+                  TRUE ~ "Other State"
+              )) %>%
+              mutate(alpha_ = ifelse(
+                  State == input$state | State == "National Average", .9, .4)) %>%
+              mutate(col_ = factor(
+                col_, unique(c("National Average", "Other State", input$state)))) %>%
+              filter(State == input$state | rep(input$all, nrow(.))) %>%
+              ggplot(aes(x = YEAR, y = out, color = col_, alpha = alpha_, group = State)) +
+              geom_line() +
+              theme_classic() +
+              guides(alpha=FALSE) +
+              labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
+                   color="")
+        }
+        else{
+          DF %>%
             filter(YEAR < 2020) %>%
             mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
             mutate(col_ = case_when(
-                State == input$state ~ input$state,
-                State == "National Average" ~ "National Average",
-                TRUE ~ "Other State"
+              State == input$state ~ input$state,
+              State == "National Average" ~ "National Average",
+              TRUE ~ "Other State"
             )) %>%
             mutate(alpha_ = ifelse(
-                State == input$state | State == "National Average", .9, .4)) %>%
+              State == input$state | State == "National Average", .9, .4)) %>%
+            mutate(col_ = factor(
+              col_, unique(c("National Average", "Other State", input$state)))) %>%
             filter(State == input$state | rep(input$all, nrow(.))) %>%
-            ggplot(aes(x = YEAR, y = out, color = col_, alpha = alpha_, group = State)) +
-            geom_line() +
+            ggplot(aes(x = YEAR, y = out, alpha = alpha_, group = State)) +
+            geom_line(color="blue") +
             theme_classic() +
             guides(alpha=FALSE) +
-            labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
+            labs(x="Year",
+                 y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
                  color="")
+          }
     })
   #Data table for fatal encounter total or capita values by state
   output$permillDT <-
     renderDataTable({
       DF %>%
         filter(YEAR != 2100) %>%
-        filter(State == input$state | rep(input$all, nrow(.)))
+        filter(State == input$state | rep(input$all, nrow(.))) %>%
+        mutate(death_rate = round(death_rate, 2)) %>%
+        mutate(deaths = round(deaths, 2))
     })
   #Choropleth Map
   output$choropleth <-
