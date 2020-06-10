@@ -6,11 +6,13 @@ library(leaflet)
 library(DT)
 library(dplyr)
 library(fatalencounters)
-library(tigris)
+library(usmap)
 library(sf)
 
-DF <- state_total_calculate()
-st_crs(state_sf) <- 4326
+DF <- state_total_calculate() %>%
+  mutate(death_rate = death_rate * 10) %>%
+  filter(YEAR < 2020 & !is.na(YEAR))
+state_map <- us_map("states")
 
 nat_DF <- DF %>%
     group_by(YEAR) %>%
@@ -187,7 +189,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                           h5("Map is shown for mean values, to select a year choose Select Year"),
                           checkboxInput("yearselect", "Select Year", FALSE),
                           conditionalPanel("input.yearselect",
-                                           sliderInput("year", "Year", 2000, 2017,
+                                           sliderInput("year", "Year", 2000, max(DF$YEAR),
                                                        value = 2000,
                                                        animate = animationOptions(1500, TRUE),
                                                        sep = "") # BM: make the numbers look like years
@@ -279,7 +281,7 @@ server <- function(input, output, session) {
             geom_line() +
             theme_classic() +
             guides(alpha=FALSE) +
-            labs(x="Year", y=ifelse(input$capita, "Rate per 100K", "Count"),
+            labs(x="Year", y=ifelse(input$capita, "Rate per 1 Million", "Count"),
                  color="")
     })
   #Data table for fatal encounter total or capita values by state
@@ -293,26 +295,45 @@ server <- function(input, output, session) {
   output$choropleth <-
     renderPlot({
       if(input$yearselect){
-          state_sf %>%
-              right_join(DF, by = "GEOID") %>%
-              filter(YEAR == input$year) %>%
-              filter(!(STUSPS %in% c("AK", "HI"))) %>%
-              ggplot() +
-              geom_sf(aes(fill=death_rate)) +
-              theme_void() +
-              labs(fill = "Deaths Per \n100k") +
-              scale_fill_distiller(palette = "Spectral")
+        DF %>%
+          filter(YEAR == input$year) %>%
+          select(death_rate, fips = GEOID) %>%
+          {plot_usmap(data=., values = "death_rate")} +
+          scale_fill_distiller(
+            limits = c(0, max(DF$death_rate, na.rm = TRUE)),
+            name = "Deaths per\nMillion",
+            palette = "Spectral") +
+          theme(legend.position = "right")
+          
+          # state_sf %>%
+          #     right_join(DF, by = "GEOID") %>%
+          #     filter(YEAR == input$year) %>%
+          #     filter(!(STUSPS %in% c("AK", "HI"))) %>%
+          #     ggplot() +
+          #     geom_sf(aes(fill=death_rate)) +
+          #     theme_void() +
+          #     labs(fill = "Deaths Per \n100k") +
+          #     scale_fill_distiller(palette = "Spectral")
       }else{
-          DF %>%
-              group_by(GEOID) %>%
-              summarize(death_rate = mean(death_rate)) %>%
-              {right_join(state_sf, ., by = "GEOID")} %>%
-              filter(!(STUSPS %in% c("AK", "HI"))) %>%
-              ggplot() +
-              geom_sf(aes(fill=death_rate)) +
-              theme_void() +
-              labs(fill = "Deaths Per \n100k") +
-              scale_fill_distiller(palette = "Spectral")
+        DF %>%
+          group_by(GEOID) %>%
+          summarize(death_rate = mean(death_rate, na.rm = TRUE)) %>%
+          rename(fips = GEOID) %>%
+          {plot_usmap(data=., values = "death_rate")} +
+          scale_fill_distiller(
+            name = "Deaths per\nMillion",
+            palette = "Spectral") +
+          theme(legend.position = "right")
+          # DF %>%
+          #     group_by(GEOID) %>%
+          #     summarize(death_rate = mean(death_rate)) %>%
+          #     {right_join(state_sf, ., by = "GEOID")} %>%
+          #     filter(!(STUSPS %in% c("AK", "HI"))) %>%
+          #     ggplot() +
+          #     geom_sf(aes(fill=death_rate)) +
+          #     theme_void() +
+          #     labs(fill = "Deaths Per \n100k") +
+          #     scale_fill_distiller(palette = "Spectral")
       }
     })
   #Interactive Leaflet Map
