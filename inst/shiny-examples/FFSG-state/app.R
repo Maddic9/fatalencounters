@@ -1,13 +1,12 @@
 # seems like we need to have library calls so that shinyapps.io can detect what pkgs to
 # install
-library(shiny)
 library(plotly)
 library(leaflet)
 library(DT)
 library(dplyr)
 library(fatalencounters)
 library(usmap)
-library(here)
+library(shiny)
 
 DF <- state_total_calculate() %>%
   filter(YEAR < 2020 & !is.na(YEAR))
@@ -265,7 +264,6 @@ server <- function(input, output, session) {
   #Plot for fatal encounter total or capita values by state
   output$permillplot <-
     renderPlot({
-      print(input$`per capita`)
         DF %>%
             filter(YEAR < 2020) %>%
             mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
