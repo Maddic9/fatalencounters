@@ -280,7 +280,13 @@ server <- function(input, output, session) {
               theme_classic() +
               guides(alpha=FALSE) +
               labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
-                   color="")
+                   color="") +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title =  element_text(size=20))
         }
         else{
           DF %>%
@@ -302,7 +308,13 @@ server <- function(input, output, session) {
             guides(alpha=FALSE) +
             labs(x="Year",
                  y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
-                 color="")
+                 color="") +
+            theme(
+              legend.text = element_text(size=13),
+              legend.title = element_text(size=15),
+              axis.text = element_text(size=13),
+              axis.title = element_text(size=17),
+              title =  element_text(size=20))
           }
     })
   #Data table for fatal encounter total or capita values by state
@@ -406,7 +418,13 @@ server <- function(input, output, session) {
               mutate(`Subject's age` = as.numeric(`Subject's age`)) %>%
               ggplot(aes(x=`Subject's age`)) +
               geom_bar() +
-              theme_classic()
+              theme_classic() +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title = element_text(size=20))
       }
       else if(input$dem == "Gender") {
           df <- fe_df %>%
@@ -421,7 +439,13 @@ server <- function(input, output, session) {
               )) %>%
               ggplot(aes(x=`Subject's gender`)) +
               geom_bar() +
-              theme_classic()
+              theme_classic() +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title = element_text(size=20))
       }
       else {
           df <- fe_df %>%
@@ -440,7 +464,13 @@ server <- function(input, output, session) {
               ggplot(aes(x=`Subject's race with imputations`)) +
               geom_bar() +
               theme_classic() +
-              theme(axis.text.x = element_text(angle = 45, hjust = 1))
+              theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title =  element_text(size=20))
       }
       df
   })
