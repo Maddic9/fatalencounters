@@ -7,6 +7,7 @@ library(dplyr)
 library(fatalencounters)
 library(usmap)
 library(shiny)
+library(forcats)
 
 DF <- state_total_calculate() %>%
   filter(YEAR < 2020 & !is.na(YEAR))
@@ -45,17 +46,15 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                h3("Data Resources"),
                uiOutput("felink"),
                #h6("This is a crowd-sourced data set that was started in 2013, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. This dataset is open-source and can be downloaded.  Please consider donating"),
-               #uiOutput("kbplink"),
-               #actionLink("moredata", "More"),
+               #h3("Additional Information")
 
-               #h3("Aditional Information")
              ),
              mainPanel(
                h2("About"),
                h4("The UW Fatal Force Study Group (FFSG) was established at the University of Washington by Prof Martina Morris (Statistics and Sociology), with assistance from Prof Ben Marwick (Anthropology, e-Science). The purpose of this project is to provide direct public access to the only national dataset available that tracks fatalities caused by police use of force.
-                  \n
+                  <br>
                   The codebase was initially developed by undergraduate research students as part of an independent research project.  The group expanded to include undergraduates from Western Washington University, and graduate students from UW.
-                  \n
+                  <br>
                   FFSG's mission is to help bring justice and peace to communities most impacted by police brutality by providing access to data, along with comparisons of respective laws and policies."),
              )
            )
@@ -283,7 +282,13 @@ server <- function(input, output, session) {
               theme_classic() +
               guides(alpha=FALSE) +
               labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
-                   color="")
+                   color="") +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title =  element_text(size=20))
         }
         else{
           DF %>%
@@ -305,7 +310,13 @@ server <- function(input, output, session) {
             guides(alpha=FALSE) +
             labs(x="Year",
                  y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
-                 color="")
+                 color="") +
+            theme(
+              legend.text = element_text(size=13),
+              legend.title = element_text(size=15),
+              axis.text = element_text(size=13),
+              axis.title = element_text(size=17),
+              title =  element_text(size=20))
           }
     })
   #Data table for fatal encounter total or capita values by state
@@ -362,21 +373,40 @@ server <- function(input, output, session) {
       if (input$dem == "Age") {
           df <- fe_df %>%
               mutate(Age = as.numeric(`Subject's age`)) %>%
-              mutate(Age = cut(Age, c(0, 15, 35, 65, Inf))) %>%
+              mutate(Age = cut(
+                  Age, c(0, 15, 35, 65, Inf),
+                  c("0-14", "15-34", "35-64", "65+"))) %>%
+              mutate(Age = fct_explicit_na(Age, "Missing")) %>%
               group_by(Age) %>%
               summarize(N=n())
       }
       else if(input$dem == "Gender") {
           df <- fe_df %>%
+              mutate(`Subject's gender` = case_when(
+                  is.na(`Subject's gender`) ~ "Missing",
+                  `Subject's gender` == "White" ~ "Missing",
+                  `Subject's gender` == "Transexual" ~ "Transgender",
+                  TRUE ~ `Subject's gender`
+              )) %>%
+              mutate(`Subject's gender` = fct_relevel(
+                  `Subject's gender`, "Missing", after = Inf
+              )) %>%
               group_by(`Subject's gender`) %>%
               summarize(N=n())
       }
       else {
           df <- fe_df %>%
-              mutate(`Subject's race with imputations` = ifelse(
-                  `Subject's race with imputations` == "NA",
-                  NA,
-                  `Subject's race with imputations`
+            mutate(`Subject's race with imputations` = case_when(
+                  `Subject's race with imputations` == "NA" ~ "Missing",
+                  is.na(`Subject's race with imputations`) ~ "Missing",
+                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
+                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
+                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
+                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
+                  TRUE ~ `Subject's race with imputations`
+              )) %>%
+              mutate(`Subject's race with imputations` = fct_relevel(
+                  `Subject's race with imputations`, "Missing", after = Inf
               )) %>%
               group_by(`Subject's race with imputations`) %>%
               summarize(N=n())
@@ -390,25 +420,59 @@ server <- function(input, output, session) {
               mutate(`Subject's age` = as.numeric(`Subject's age`)) %>%
               ggplot(aes(x=`Subject's age`)) +
               geom_bar() +
-              theme_classic()
+              theme_classic() +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title = element_text(size=20))
       }
       else if(input$dem == "Gender") {
           df <- fe_df %>%
+              mutate(`Subject's gender` = case_when(
+                  is.na(`Subject's gender`) ~ "Missing",
+                  `Subject's gender` == "White" ~ "Missing",
+                  `Subject's gender` == "Transexual" ~ "Transgender",
+                  TRUE ~ `Subject's gender`
+              )) %>%
+              mutate(`Subject's gender` = fct_relevel(
+                  `Subject's gender`, "Missing", after = Inf
+              )) %>%
               ggplot(aes(x=`Subject's gender`)) +
               geom_bar() +
-              theme_classic()
+              theme_classic() +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title = element_text(size=20))
       }
       else {
           df <- fe_df %>%
-              mutate(`Subject's race with imputations` = ifelse(
-                  `Subject's race with imputations` == "NA",
-                  NA,
-                  `Subject's race with imputations`
+              mutate(`Subject's race with imputations` = case_when(
+                  `Subject's race with imputations` == "NA" ~ "Missing",
+                  is.na(`Subject's race with imputations`) ~ "Missing",
+                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
+                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
+                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
+                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
+                  TRUE ~ `Subject's race with imputations`
+              )) %>%
+              mutate(`Subject's race with imputations` = fct_relevel(
+                  `Subject's race with imputations`, "Missing", after = Inf
               )) %>%
               ggplot(aes(x=`Subject's race with imputations`)) +
               geom_bar() +
               theme_classic() +
-              theme(axis.text.x = element_text(angle = 45, hjust = 1))
+              theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+              theme(
+                  legend.text = element_text(size=13),
+                  legend.title = element_text(size=15),
+                  axis.text = element_text(size=13),
+                  axis.title = element_text(size=17),
+                  title =  element_text(size=20))
       }
       df
   })
@@ -417,9 +481,6 @@ server <- function(input, output, session) {
     tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), "- This is a crowd-sourced data set that was started in 2013, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. The dataset is open-source and can be downloaded.  Please consider donating to the organization that maintains the data.")  
     })
 }
-#  output$kbplink <- renderUI({
-#    tagList(a("Killed by Police", href="http://killedbypolice.net"), "- An open sourced data collection from an online anonymous source that dates back to May 1, 2013. The data set is still in continuation and the legitimacy of each data point is confirmed through actual online news articles of each fatality. Killed By Police has a number of 4,629 cases recorded.")
-#  })
-#}
+# deleted KBP link
 
 shinyApp(ui, server)
