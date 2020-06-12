@@ -7,6 +7,7 @@ library(dplyr)
 library(fatalencounters)
 library(usmap)
 library(shiny)
+library(forcats)
 
 DF <- state_total_calculate() %>%
   filter(YEAR < 2020 & !is.na(YEAR))
@@ -43,12 +44,8 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              sidebarPanel(
 
                h3("Data Resources"),
-               uiOutput("felink"),
+               uiOutput("felink")
                #h6("This data source has been collected since 2000 and is active until present day. As of the month of April there have been a total of 19,856 number of cases that are recorded. This database allows you to go in and download any data needed and also includes visualizations."),
-               uiOutput("kbplink"),
-               actionLink("moredata", "More"),
-
-               h3("Aditional Information")
              ),
              mainPanel(
                h2("About"),
@@ -362,21 +359,40 @@ server <- function(input, output, session) {
       if (input$dem == "Age") {
           df <- fe_df %>%
               mutate(Age = as.numeric(`Subject's age`)) %>%
-              mutate(Age = cut(Age, c(0, 15, 35, 65, Inf))) %>%
+              mutate(Age = cut(
+                  Age, c(0, 15, 35, 65, Inf),
+                  c("0-14", "15-34", "35-64", "65+"))) %>%
+              mutate(Age = fct_explicit_na(Age, "Missing")) %>%
               group_by(Age) %>%
               summarize(N=n())
       }
       else if(input$dem == "Gender") {
           df <- fe_df %>%
+              mutate(`Subject's gender` = case_when(
+                  is.na(`Subject's gender`) ~ "Missing",
+                  `Subject's gender` == "White" ~ "Missing",
+                  `Subject's gender` == "Transexual" ~ "Transgender",
+                  TRUE ~ `Subject's gender`
+              )) %>%
+              mutate(`Subject's gender` = fct_relevel(
+                  `Subject's gender`, "Missing", after = Inf
+              )) %>%
               group_by(`Subject's gender`) %>%
               summarize(N=n())
       }
       else {
           df <- fe_df %>%
-              mutate(`Subject's race with imputations` = ifelse(
-                  `Subject's race with imputations` == "NA",
-                  NA,
-                  `Subject's race with imputations`
+            mutate(`Subject's race with imputations` = case_when(
+                  `Subject's race with imputations` == "NA" ~ "Missing",
+                  is.na(`Subject's race with imputations`) ~ "Missing",
+                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
+                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
+                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
+                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
+                  TRUE ~ `Subject's race with imputations`
+              )) %>%
+              mutate(`Subject's race with imputations` = fct_relevel(
+                  `Subject's race with imputations`, "Missing", after = Inf
               )) %>%
               group_by(`Subject's race with imputations`) %>%
               summarize(N=n())
@@ -394,16 +410,32 @@ server <- function(input, output, session) {
       }
       else if(input$dem == "Gender") {
           df <- fe_df %>%
+              mutate(`Subject's gender` = case_when(
+                  is.na(`Subject's gender`) ~ "Missing",
+                  `Subject's gender` == "White" ~ "Missing",
+                  `Subject's gender` == "Transexual" ~ "Transgender",
+                  TRUE ~ `Subject's gender`
+              )) %>%
+              mutate(`Subject's gender` = fct_relevel(
+                  `Subject's gender`, "Missing", after = Inf
+              )) %>%
               ggplot(aes(x=`Subject's gender`)) +
               geom_bar() +
               theme_classic()
       }
       else {
           df <- fe_df %>%
-              mutate(`Subject's race with imputations` = ifelse(
-                  `Subject's race with imputations` == "NA",
-                  NA,
-                  `Subject's race with imputations`
+              mutate(`Subject's race with imputations` = case_when(
+                  `Subject's race with imputations` == "NA" ~ "Missing",
+                  is.na(`Subject's race with imputations`) ~ "Missing",
+                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
+                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
+                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
+                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
+                  TRUE ~ `Subject's race with imputations`
+              )) %>%
+              mutate(`Subject's race with imputations` = fct_relevel(
+                  `Subject's race with imputations`, "Missing", after = Inf
               )) %>%
               ggplot(aes(x=`Subject's race with imputations`)) +
               geom_bar() +
@@ -417,9 +449,6 @@ server <- function(input, output, session) {
     tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), "- This data source has been collected since 2000 and is active until present day. As of the month of April there have been a total of 19,856 number of cases that are recorded. This database allows you to go in and download any data needed and also includes visualizations.")
   })
 
-  output$kbplink <- renderUI({
-    tagList(a("Killed by Police", href="http://killedbypolice.net"), "- An open sourced data collection from an online anonymous source that dates back to May 1, 2013. The data set is still in continuation and the legitimacy of each data point is confirmed through actual online news articles of each fatality. Killed By Police has a number of 4,629 cases recorded.")
-  })
 }
 
 shinyApp(ui, server)

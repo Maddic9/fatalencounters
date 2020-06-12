@@ -1,0 +1,10 @@
+name: ffsg-state
+title:
+username:
+account: nmarquez-uw
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2439331
+bundleId: 3255321
+url: https://nmarquez-uw.shinyapps.io/ffsg-state/
+when: 1591849180.47765
