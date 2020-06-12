@@ -51,21 +51,46 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              ),
              mainPanel(
                h2("About"),
-               h4("The UW Fatal Force Study Group (FFSG) was established at the University of Washington by Prof Martina Morris (Statistics and Sociology), with assistance from Prof Ben Marwick (Anthropology, e-Science). The purpose of this project is to provide direct public access to the only national dataset available that tracks fatalities caused by police use of force.
+               h4("The UW Fatal Force Study Group (FFSG) was established at the University of 
+               Washington by Prof Martina Morris (Statistics and Sociology), with assistance 
+               from Prof Ben Marwick (Anthropology, e-Science). The purpose of this project 
+               is to provide direct public access to the only national dataset available that 
+               tracks the number of people killed by police use of deadly force.
                   <br>
-                  The codebase was initially developed by undergraduate research students as part of an independent research project.  The group expanded to include undergraduates from Western Washington University, and graduate students from UW.
+                  The codebase was initially developed by undergraduate research students at UW as 
+                  part of an independent research project.  The group expanded to include 
+                  undergraduates from Western Washington University, and graduate students from UW.
                   <br>
-                  FFSG's mission is to help bring justice and peace to communities most impacted by police brutality by providing access to data, along with comparisons of respective laws and policies."),
+                  A note on the data: While the Fatal Encounters dataset is the most complete record
+                  we have of civilian deaths at the hands of law enforcement in the US, it is neither complete,
+                  nor error free.  Missing data occurs at many levels:  cases may be missing entirely,
+                  variables of interest are not included (for example, the names of the officers), and
+                  even when a variable is included, it may still be missing for a substantial
+                  number of cases.  For this 
+                  reason it is important to interpret the values, trends and comparisons you observe
+                  here with care.  One thing you can be certain of is that the numbers of cases 
+                  recorded here underestimates, we just don't know by how much.
+                  <br>
+                  FFSG's mission is to help bring justice and peace to communities most impacted 
+                  by police brutality.  First: We hope that by providing simple access to these data, 
+                  community members are empowered to use the information in their fight to 
+                  change the policies that govern the use of deadly force by law enforcement, 
+                  and the accountbility of officers who abuse this power.  
+                  Second:  We have made this an
+                  open-source project that follows the principles of reproducible research,
+                  relies on free software (R, GitHub, shinyapps.io), and encourages collaboration.
+                  We welcome others to contribute and improve both the
+                  dataset and the app for exploring it"),
              )
            )
   ),
 
-  #Tab for Tables and Graphs
+  #Tab for Tables and Plots
   navbarMenu(
-    "Tables and Graphs",
+    "Tables and Plots",
 
     #Page for counts and per capita values of Fatal Encounters
-    tabPanel(title = "Counts", value = "tab2",
+    tabPanel(title = "State Trends", value = "tab2",
 
              fluidPage(
                fluidRow(
@@ -118,12 +143,12 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
     ),
 
     #Page for stats based on demographics: Race, Gender, Age
-    tabPanel(title= "Descriptive Statistics", value="tab3",
+    tabPanel(title= "Demographic Breakdowns", value="tab3",
 
              fluidPage(
                fluidRow(
                  column(10,
-                        h1("Descriptive Statistics")),
+                        h1("Breakdowns")),
                  column(2,
                         icon('question-circle', class='fa-2x helper-btn'),
                         tags$div(class="helper-box", style="display:none",
@@ -139,8 +164,8 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
 
              sidebarLayout(
                sidebarPanel(
-                 selectInput("dem", "Demographic", c("Race", "Gender", "Age")),
-                 h6("Disclaimer: Please take note that the data we are currently using is still a work in progress so some of the data is missing. This means that there is a possibility that the trends displayed aren't the true trends for the data."),
+                 selectInput("dem", "Demographic Attribute", c("Race", "Gender", "Age")),
+                 h6("Disclaimer: Please take note that the data on demographic attributes can be missing, especially for race."),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
                           p("Trends will differ based on
@@ -270,12 +295,12 @@ server <- function(input, output, session) {
               mutate(col_ = case_when(
                   State == input$state ~ input$state,
                   State == "National Average" ~ "National Average",
-                  TRUE ~ "Other State"
+                  TRUE ~ "Other States"
               )) %>%
               mutate(alpha_ = ifelse(
                   State == input$state | State == "National Average", .9, .4)) %>%
               mutate(col_ = factor(
-                col_, unique(c("National Average", "Other State", input$state)))) %>%
+                col_, unique(c("National Average", "Other States", input$state)))) %>%
               filter(State == input$state | rep(input$all, nrow(.))) %>%
               ggplot(aes(x = YEAR, y = out, color = col_, alpha = alpha_, group = State)) +
               geom_line() +
