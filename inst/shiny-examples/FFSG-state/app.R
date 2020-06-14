@@ -33,10 +33,13 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              column(2,
                     icon('question-circle', class='fa-2x helper-btn'),
                     tags$div(class="helper-box", style="display:none",
-                             p('Upload a file of observed network data (must be of a supported type).',
-                               'Add custom attributes or symmetrize on the "Edit Network" tab.')),
-                    actionLink('abtleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
-                    actionLink('abtright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), label=NULL)
+                             p('Use the tabs across the top navigation bar to access the data 
+                               or information.  Each tab has additional help buttons with context 
+                               specific info.')),
+                    actionLink('abtleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), 
+                               label=NULL),
+                    actionLink('abtright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), 
+                               label=NULL)
 
              )
              )),
@@ -45,42 +48,51 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
 
                h3("Data Resources"),
                uiOutput("felink"),
-               #h6("This is a crowd-sourced data set that was started in 2013, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. This dataset is open-source and can be downloaded.  Please consider donating"),
+               #h6("This is a crowd-sourced data set that was started in 2012, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. This dataset is open-source and can be downloaded.  Please consider donating"),
                #h3("Additional Information")
 
              ),
              mainPanel(
                h2("About"),
-               h4("The UW Fatal Force Study Group (FFSG) was established at the University of 
+               p("The UW Fatal Force Study Group (FFSG) was originally established at the University of 
                Washington by Prof Martina Morris (Statistics and Sociology), with assistance 
-               from Prof Ben Marwick (Anthropology, e-Science). The purpose of this project 
+               from Prof Ben Marwick (Anthropology, e-Science) and a group of undergraduate
+               students. The purpose of this project 
                is to provide direct public access to the only national dataset available that 
-               tracks the number of people killed by police use of deadly force.
-                  <br>
-                  The codebase was initially developed by undergraduate research students at UW as 
+               tracks the number of people killed by police use of deadly force back to 2000."),
+               p("The codebase was initially developed by undergraduate research students at UW as 
                   part of an independent research project.  The group expanded to include 
-                  undergraduates from Western Washington University, and graduate students from UW.
-                  <br>
-                  A note on the data: While the Fatal Encounters dataset is the most complete record
-                  we have of civilian deaths at the hands of law enforcement in the US, it is neither complete,
-                  nor error free.  Missing data occurs at many levels:  cases may be missing entirely,
-                  variables of interest are not included (for example, the names of the officers), and
-                  even when a variable is included, it may still be missing for a substantial
-                  number of cases.  For this 
-                  reason it is important to interpret the values, trends and comparisons you observe
-                  here with care.  One thing you can be certain of is that the numbers of cases 
-                  recorded here underestimates, we just don't know by how much.
-                  <br>
-                  FFSG's mission is to help bring justice and peace to communities most impacted 
-                  by police brutality.  First: We hope that by providing simple access to these data, 
+                  undergraduates from Western Washington University, and graduate students from UW."),
+               h3("Our goals"),
+               p("FFSG's mission is to help bring justice and peace to communities most impacted 
+                  by police brutality."),
+               strong("First:"),
+               ("We hope that by providing simple access to these data, 
                   community members are empowered to use the information in their fight to 
                   change the policies that govern the use of deadly force by law enforcement, 
-                  and the accountbility of officers who abuse this power.  
-                  Second:  We have made this an
+                  and the accountbility of officers who abuse this power."),
+               p(),
+               strong("Second:"),
+                ("We have made this an
                   open-source project that follows the principles of reproducible research,
                   relies on free software (R, GitHub, shinyapps.io), and encourages collaboration.
                   We welcome others to contribute and improve both the
                   dataset and the app for exploring it"),
+               p(),
+               strong("Finally"), 
+               ("this is our first draft of the data exploration app.  We are releasing it
+                  so that we can get comments and suggestions from people like you.  Please
+                  stay tuned as it evolves."),
+               h3("A note on the data:"),
+               ("While the Fatal Encounters dataset is the most complete record
+                  we have of deaths caused by law enforcement in the US, it is neither complete,
+                  nor error free.  Missing data occurs at many levels:  cases may be missing entirely,
+                  variables of interest are not included (for example, the names of the officers), and
+                  even when a variable is included it may still be missing for a substantial
+                  number of cases.  For this 
+                  reason it is important to interpret the values, trends and comparisons you observe
+                  here with care.  One thing you can be certain of is that the numbers of cases 
+                  recorded here are underestimates, we just don't know by how much."),
              )
            )
   ),
@@ -117,10 +129,9 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  checkboxInput("all", "Display with other states", FALSE),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
-                                   p("Selected state is colored red
-                                    with the other states displayed
-                                     in gray and the US average in
-                                     black. (US average is only
+                                   p("Selected state is highlighted,
+                                    with the other states and the US average displayed
+                                     in background. (US average is only
                                      shown for per capita values)")),
 
                  checkboxInput("per capita", "Calculate per 100K", TRUE),
@@ -131,13 +142,13 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                                      fatalities per 100K
                                      persons in the population.
                                      Otherwise displays total
-                                     number of fatal events."))
+                                     number of fatalities."))
                ),
                #Creates plot and table tabs so user can view data in either form
                mainPanel(tabsetPanel(
                  type = "tabs",
-                 tabPanel("plot", plotOutput("permillplot")),
-                 tabPanel("table", dataTableOutput("permillDT"))
+                 tabPanel("plot", plotOutput("perCapitaPlot")),
+                 tabPanel("table", dataTableOutput("perCapitaDT"))
                ))
              )
     ),
@@ -286,7 +297,7 @@ server <- function(input, output, session) {
 
   #Outputs for tables, plots, and maps
   #Plot for fatal encounter total or capita values by state
-  output$permillplot <-
+  output$perCapitaPlot <-
     renderPlot({
         if(input$all | input$state == "National Average"){
           DF %>%
@@ -345,7 +356,7 @@ server <- function(input, output, session) {
           }
     })
   #Data table for fatal encounter total or capita values by state
-  output$permillDT <-
+  output$perCapitaDT <-
     renderDataTable({
       DF %>%
         filter(YEAR != 2100) %>%
@@ -503,7 +514,17 @@ server <- function(input, output, session) {
   })
 
   output$felink <- renderUI({
-    tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), "- This is a crowd-sourced data set that was started in 2013, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. The dataset is open-source and can be downloaded.  Please consider donating to the organization that maintains the data.")  
+    tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), 
+            "- This is a crowd-sourced dataset that was started in 2012, 
+            and has back-filled data to 2000.  The people behind this effort
+            are continuing to add information fields
+            and cases, making this the only actively maintained dataset 
+            with this range of coverage. The dataset is open-source, can be downloaded, and
+            the maintainers encourage corrections and submissions from the public.",
+            p(),
+            p("There is no official government data collected on these fatalities,
+            so the Fatal Encounters dataset is a critical public resource.
+            Please consider donating to the organization that produces it."))  
     })
 }
 # deleted KBP link
