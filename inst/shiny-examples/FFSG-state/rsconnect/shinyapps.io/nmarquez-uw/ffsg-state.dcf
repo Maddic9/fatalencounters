@@ -5,6 +5,6 @@ account: nmarquez-uw
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2439331
-bundleId: 3262952
+bundleId: 3262977
 url: https://nmarquez-uw.shinyapps.io/ffsg-state/
-when: 1591993112.96836
+when: 1591993740.39404

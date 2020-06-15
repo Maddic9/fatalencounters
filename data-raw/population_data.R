@@ -11,9 +11,9 @@ race_vec <- c(
     h = "Hispanic or Latino",
     nhba = "Black or African American",
     nhaa = "Asian",
-    nhia = "American Indian and Alaska Native",
-    nhna = "Native Hawaiian and Other Pacific Islande",
-    nhtom = "Two or More Races",
+    nhia = "American Indian and Alaska Native", # indegineous?
+    nhna = "Native Hawaiian and Other Pacific Islander", # indegionus?
+    nhtom = "Two or More Races", # other
     nhwa = "White",
     tot = ""
     )
