@@ -260,7 +260,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                                                        sep = "") # BM: make the numbers look like years
                           )
                         ),
-                        mainPanel(plotOutput("choropleth"))
+                        mainPanel(plotlyOutput("choropleth"))
                       )
              ),
 
@@ -386,30 +386,38 @@ server <- function(input, output, session) {
     })
   #Choropleth Map
   output$choropleth <-
-    renderPlot({
+    renderPlotly({
       if(input$yearselect){
-        DF %>%
+        out <- DF %>%
           filter(State != "United States") %>%
           filter(YEAR == input$year) %>%
-          select(death_rate, fips = GEOID) %>%
+          select(death_rate, fips = GEOID, State) %>%
+          mutate(t_ = paste0(
+            "State: ", State, "\n", "Rate: ", round(death_rate, 2))) %>%
           {plot_usmap(data=., values = "death_rate")} +
           scale_fill_distiller(
             limits = c(0, max(DF$death_rate, na.rm = TRUE)),
             name = "Deaths per\n100k",
             palette = "YlOrRd", direction = 1) +
+          aes(text=t_) +
           theme(legend.position = "right")
       }else{
-        DF %>%
+        out <- DF %>%
           filter(State != "United States") %>%
-          group_by(GEOID) %>%
+          group_by(GEOID, State) %>%
           summarize(death_rate = mean(death_rate, na.rm = TRUE)) %>%
+          mutate(t_ = paste0(
+              "State: ", State, "\n", "Rate: ", round(death_rate, 2))) %>%
           rename(fips = GEOID) %>%
-          {plot_usmap(data=., values = "death_rate")} +
+          {plot_usmap(
+              data=., values = "death_rate")} +
+          aes(text=t_) +
           scale_fill_distiller(
             name = "Deaths per\n100k",
             palette = "YlOrRd", direction = 1) +
           theme(legend.position = "right")
       }
+      ggplotly(out, tooltip = "text")
     })
   #Interactive Leaflet Map
   output$intmap <-
