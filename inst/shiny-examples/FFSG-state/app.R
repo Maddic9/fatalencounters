@@ -481,6 +481,7 @@ server <- function(input, output, session) {
               mutate(Age = as.character(Age)) %>%
               mutate(death_rate = round(death_rate, 2)) %>%
               mutate(deaths = round(deaths, 2)) %>%
+              rename(`Death Count` = deaths, `Death Rate` = death_rate) %>%
               mutate(Proportion = round(Proportion, 2))
       }
       else if(input$dem == "Gender") {
@@ -489,6 +490,7 @@ server <- function(input, output, session) {
               mutate(Gender = as.character(Gender)) %>%
               mutate(death_rate = round(death_rate, 2)) %>%
               mutate(deaths = round(deaths, 2)) %>%
+              rename(`Death Count` = deaths, `Death Rate` = death_rate) %>%
               mutate(Proportion = round(Proportion, 2))
       }
       else {
@@ -496,6 +498,7 @@ server <- function(input, output, session) {
               mutate(Race = as.character(Race)) %>%
               mutate(death_rate = round(death_rate, 2)) %>%
               mutate(deaths = round(deaths, 2)) %>%
+              rename(`Death Count` = deaths, `Death Rate` = death_rate) %>%
               mutate(Proportion = round(Proportion, 2))
       }
       df
