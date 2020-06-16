@@ -19,7 +19,7 @@
 #' @export
 
 state_total_calculate <- function(project_pop = TRUE){
-    pop_df <- state_total_df %>%
+    pop_df <- state_age_df %>%
         group_by(GEOID, YEAR) %>%
         summarize(Population = sum(value)) %>%
         ungroup() %>%
@@ -32,12 +32,12 @@ state_total_calculate <- function(project_pop = TRUE){
         pop_df <- project_data(pop_df,(maxyear + 1):current)
     }
 
-    fe_df %>%
-        rename(state_abb = "Location of death (state)") %>%
-        rename(YEAR = "Date (Year)") %>%
-        group_by(state_abb, YEAR) %>%
+    fe_df_clean %>%
+        filter(YEAR <= max(pop_df$YEAR, na.rm = TRUE)) %>%
+        group_by(state_abb, State, YEAR) %>%
         summarise(deaths=n()) %>%
         ungroup() %>%
-        left_join(pop_df, by = c("state_abb", "YEAR")) %>%
+        right_join(pop_df, by = c("state_abb", "YEAR", "State")) %>%
+        mutate(deaths = ifelse(is.na(deaths), 0, deaths)) %>%
         mutate(death_rate = deaths / Population * 100000)
 }

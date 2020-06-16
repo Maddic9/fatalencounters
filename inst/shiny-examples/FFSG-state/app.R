@@ -9,17 +9,47 @@ library(usmap)
 library(shiny)
 library(forcats)
 
-DF <- state_total_calculate() %>%
-  filter(YEAR < 2020 & !is.na(YEAR))
+DF <- state_total_calculate()
 
 DF <- DF %>%
     group_by(YEAR) %>%
     summarize(
+        death_rate = sum(deaths)/ sum(Population) * 100000,
         deaths = mean(deaths),
-        death_rate = mean(death_rate)) %>%
+        tot_deaths = sum(deaths),
+        Population = sum(Population)) %>%
     mutate(State = "National Average") %>%
-    filter(YEAR < 2020) %>%
-  bind_rows(DF)
+  bind_rows(DF) %>%
+  select(-state_abb, -tot_deaths)
+
+raceDF <- state_race_calculate() %>%
+    group_by(Race) %>%
+    summarize(deaths = sum(deaths), Population = sum(Population)) %>%
+    mutate(Race = factor(Race)) %>%
+    mutate(Race = fct_relevel(Race, "Missing", after = Inf)) %>%
+    mutate(death_rate = deaths/Population*100000) %>%
+    mutate(Proportion = deaths/sum(deaths)) %>%
+    select(-Population)
+
+ageDF <- state_age_calculate() %>%
+    group_by(Age) %>%
+    summarize(deaths = sum(deaths), Population = sum(Population)) %>%
+    mutate(Age = c(
+        rep("0-14", 3), rep("15-44", 5), rep("45+", 5), "Missing")) %>%
+    group_by(Age) %>%
+    summarize(deaths = sum(deaths), Population = sum(Population)) %>%
+    mutate(death_rate = deaths/Population*100000) %>%
+    mutate(Proportion = deaths/sum(deaths)) %>%
+    select(-Population)
+
+sexDF <- state_sex_calculate() %>%
+    group_by(Sex) %>%
+    summarize(deaths = sum(deaths), Population = sum(Population)) %>%
+    mutate(Sex = factor(Sex)) %>%
+    mutate(Sex = fct_relevel(Sex, "Missing", after = Inf)) %>%
+    mutate(death_rate = deaths/Population*100000) %>%
+    mutate(Proportion = deaths/sum(deaths)) %>%
+    select(-Population)
 
 #-------------------------------------------------------UI-----------------------------------------------------------------#
 
@@ -33,10 +63,13 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              column(2,
                     icon('question-circle', class='fa-2x helper-btn'),
                     tags$div(class="helper-box", style="display:none",
-                             p('Upload a file of observed network data (must be of a supported type).',
-                               'Add custom attributes or symmetrize on the "Edit Network" tab.')),
-                    actionLink('abtleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
-                    actionLink('abtright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), label=NULL)
+                             p('Use the tabs across the top navigation bar to access the data 
+                               or information.  Each tab has additional help buttons with context 
+                               specific info.')),
+                    actionLink('abtleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), 
+                               label=NULL),
+                    actionLink('abtright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), 
+                               label=NULL)
 
              )
              )),
@@ -44,26 +77,62 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              sidebarPanel(
 
                h3("Data Resources"),
-               uiOutput("felink")
-               #h6("This data source has been collected since 2000 and is active until present day. As of the month of April there have been a total of 19,856 number of cases that are recorded. This database allows you to go in and download any data needed and also includes visualizations."),
+               uiOutput("felink"),
+               #h6("This is a crowd-sourced data set that was started in 2012, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. This dataset is open-source and can be downloaded.  Please consider donating"),
+               #h3("Additional Information")
+
              ),
              mainPanel(
                h2("About"),
-               h4("UW Fatal Force Research Group (FFRG) was brought together at the University of Washington by Professor Martina Morris and Ben Marwick. Morris' background in sociology and statistics led her to creating this research group to fight injustice in police using fatal force. Ben Marwick, an Archeology professor, with a background in statistics and social science joined Morris as a side project. This research group started about a year and half ago with two students of Morris. The group has now expanded to seven undergraduate students, two from Western Washington University, with the addition of the two UW Professors. UW FFRG's mission is to bring justice and peace to communities most impacted by police brutality through a comprehensive data analysis combined with the comparisons of respective laws and policies."),
-               h2("Washington Policies"),
-               h4("In the state of Washington, De-Escalate Washington Initiative 940 was introduced to initiate officer training and community safety. Because of the amount of deaths by police that happened in the state of Washington action was called. I-940 required training on mental illness, violence de-escalation, and first aid. It also required that the communities stakeholders be involved in any policy making. Community stakeholders include persons with disabilities; members of the lesbian, gay, bisexual, transgender, and queer community; persons of color; immigrants; non-citizens; native Americans; youth; and formerly incarcerated persons."),
-               h4("On March 8, 2018, Washington state legislature voted on I-940 with the inclusion of ESHB 3003 to come to an agreement on how to further build trust back into the communities. With ESHB 3003, both sides agreed that there needs to be a clearer meaning of good faith. Together with I-940 and ESHB 3003 resulted in requiring violence de-escalation and mental health training. Require first aid training for all officers and require that police render first aid at the earliest safe opportunity. Removes the de facto immunity and adopts a reasonable officer standard. Requires completely independent investigations of use of deadly force. Requires notification of Tribal governments where a tribal person was injured or killed. Brings diverse community stakeholders into the process for input on policy."),
-               h4("On April 20, 2018, Judge Christine Schaller of Thurston County, WA ordered state legislature to put I-940 back on the November 2018 ballot. Time Eyman argued that the passing of ESHB 3003 was rush and,  disrespect[ed] initiative signers and prevent[ed] voters from exercising their right to vote. Since wording and phrases were changed from the original initiative it went against Washington state's constitution stated that it must be passed with such wording or it should be sent to the ballot.")
+               p("The UW Fatal Force Study Group (FFSG) was originally established at the University of 
+               Washington by Prof Martina Morris (Statistics and Sociology), with assistance 
+               from Prof Ben Marwick (Anthropology, e-Science) and a group of undergraduate
+               students. The purpose of this project 
+               is to provide direct public access to the only national dataset available that 
+               tracks the number of people killed by police use of deadly force back to 2000."),
+               p("The codebase was initially developed by undergraduate research students at UW as 
+                  part of an independent research project.  The group expanded to include 
+                  undergraduates from Western Washington University, and graduate students from UW."),
+               h3("Our goals"),
+               p("FFSG's mission is to help bring justice and peace to communities most impacted 
+                  by police brutality."),
+               strong("First:"),
+               ("We hope that by providing simple access to these data, 
+                  community members are empowered to use the information in their fight to 
+                  change the policies that govern the use of deadly force by law enforcement, 
+                  and the accountbility of officers who abuse this power."),
+               p(),
+               strong("Second:"),
+                ("We have made this an
+                  open-source project that follows the principles of reproducible research,
+                  relies on free software (R, GitHub, shinyapps.io), and encourages collaboration.
+                  We welcome others to contribute and improve both the
+                  dataset and the app for exploring it"),
+               p(),
+               strong("Finally"), 
+               ("this is our first draft of the data exploration app.  We are releasing it
+                  so that we can get comments and suggestions from people like you.  Please
+                  stay tuned as it evolves."),
+               h3("A note on the data:"),
+               ("While the Fatal Encounters dataset is the most complete record
+                  we have of deaths caused by law enforcement in the US, it is neither complete,
+                  nor error free.  Missing data occurs at many levels:  cases may be missing entirely,
+                  variables of interest are not included (for example, the names of the officers), and
+                  even when a variable is included it may still be missing for a substantial
+                  number of cases.  For this 
+                  reason it is important to interpret the values, trends and comparisons you observe
+                  here with care.  One thing you can be certain of is that the numbers of cases 
+                  recorded here are underestimates, we just don't know by how much."),
              )
            )
   ),
 
-  #Tab for Tables and Graphs
+  #Tab for Tables and Plots
   navbarMenu(
-    "Tables and Graphs",
+    "Tables and Plots",
 
     #Page for counts and per capita values of Fatal Encounters
-    tabPanel(title = "Counts", value = "tab2",
+    tabPanel(title = "State Trends", value = "tab2",
 
              fluidPage(
                fluidRow(
@@ -90,10 +159,9 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  checkboxInput("all", "Display with other states", FALSE),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
-                                   p("Selected state is colored red
-                                    with the other states displayed
-                                     in gray and the US average in
-                                     black. (US average is only
+                                   p("Selected state is highlighted,
+                                    with the other states and the US average displayed
+                                     in background. (US average is only
                                      shown for per capita values)")),
 
                  checkboxInput("per capita", "Calculate per 100K", TRUE),
@@ -104,24 +172,24 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                                      fatalities per 100K
                                      persons in the population.
                                      Otherwise displays total
-                                     number of fatal events."))
+                                     number of fatalities."))
                ),
                #Creates plot and table tabs so user can view data in either form
                mainPanel(tabsetPanel(
                  type = "tabs",
-                 tabPanel("plot", plotOutput("permillplot")),
-                 tabPanel("table", dataTableOutput("permillDT"))
+                 tabPanel("plot", plotOutput("perCapitaPlot")),
+                 tabPanel("table", dataTableOutput("perCapitaDT"))
                ))
              )
     ),
 
     #Page for stats based on demographics: Race, Gender, Age
-    tabPanel(title= "Descriptive Statistics", value="tab3",
+    tabPanel(title= "Demographic Breakdowns", value="tab3",
 
              fluidPage(
                fluidRow(
                  column(10,
-                        h1("Descriptive Statistics")),
+                        h1("Breakdowns")),
                  column(2,
                         icon('question-circle', class='fa-2x helper-btn'),
                         tags$div(class="helper-box", style="display:none",
@@ -137,8 +205,8 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
 
              sidebarLayout(
                sidebarPanel(
-                 selectInput("dem", "Demographic", c("Race", "Gender", "Age")),
-                 h6("Disclaimer: Please take note that the data we are currently using is still a work in progress so some of the data is missing. This means that there is a possibility that the trends displayed aren't the true trends for the data."),
+                 selectInput("dem", "Demographic Attribute", c("Race", "Gender", "Age")),
+                 h6("Disclaimer: Please take note that the data on demographic attributes can be missing, especially for race."),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
                           p("Trends will differ based on
@@ -259,28 +327,36 @@ server <- function(input, output, session) {
 
   #Outputs for tables, plots, and maps
   #Plot for fatal encounter total or capita values by state
-  output$permillplot <-
+  output$perCapitaPlot <-
     renderPlot({
         if(input$all | input$state == "National Average"){
-          DF %>%
-              filter(YEAR < 2020) %>%
+          out <- DF %>%
               mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
               mutate(col_ = case_when(
                   State == input$state ~ input$state,
                   State == "National Average" ~ "National Average",
-                  TRUE ~ "Other State"
+                  TRUE ~ "Other States"
               )) %>%
               mutate(alpha_ = ifelse(
-                  State == input$state | State == "National Average", .9, .4)) %>%
+                  State == input$state | State == "National Average", .9, .6)) %>%
+              mutate(lw_ = ifelse(State == input$state , "2", "1")) %>%
               mutate(col_ = factor(
-                col_, unique(c("National Average", "Other State", input$state)))) %>%
+                col_, unique(c("National Average", "Other States", input$state)))) %>%
               filter(State == input$state | rep(input$all, nrow(.))) %>%
-              ggplot(aes(x = YEAR, y = out, color = col_, alpha = alpha_, group = State)) +
-              geom_line() +
+              ggplot(aes(
+                x = YEAR, y = out, color = col_, alpha = alpha_, group = State,
+                text = paste0(
+                    "State: ", State, "\n",
+                    "Year: ", YEAR, "\n",
+                    ifelse(input$`per capita`, "Rate per 100k", "Count"), ": ",
+                    round(out, 2))
+                    )) +
+              geom_line(aes(size=lw_)) +
               theme_classic() +
-              guides(alpha=FALSE) +
+              guides(alpha=FALSE, size=FALSE) +
               labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
                    color="") +
+              scale_size_manual( values = c(`2` = 2, `1` = .75)) +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
@@ -289,20 +365,23 @@ server <- function(input, output, session) {
                   title =  element_text(size=20))
         }
         else{
-          DF %>%
-            filter(YEAR < 2020) %>%
+          out <- DF %>%
             mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
             mutate(col_ = case_when(
               State == input$state ~ input$state,
               State == "National Average" ~ "National Average",
               TRUE ~ "Other State"
             )) %>%
-            mutate(alpha_ = ifelse(
-              State == input$state | State == "National Average", .9, .4)) %>%
             mutate(col_ = factor(
               col_, unique(c("National Average", "Other State", input$state)))) %>%
             filter(State == input$state | rep(input$all, nrow(.))) %>%
-            ggplot(aes(x = YEAR, y = out, alpha = alpha_, group = State)) +
+            ggplot(aes(
+              x = YEAR, y = out, group = State,
+              text = paste0(
+                "State: ", State, "\n",
+                "Year: ", YEAR, "\n",
+                ifelse(input$`per capita`, "Rate per 100k", "Count"), ": ",
+                round(out, 2)))) +
             geom_line(color="blue") +
             theme_classic() +
             guides(alpha=FALSE) +
@@ -315,10 +394,11 @@ server <- function(input, output, session) {
               axis.text = element_text(size=13),
               axis.title = element_text(size=17),
               title =  element_text(size=20))
-          }
+        }
+      out
     })
   #Data table for fatal encounter total or capita values by state
-  output$permillDT <-
+  output$perCapitaDT <-
     renderDataTable({
       DF %>%
         filter(YEAR != 2100) %>%
@@ -338,7 +418,7 @@ server <- function(input, output, session) {
           scale_fill_distiller(
             limits = c(0, max(DF$death_rate, na.rm = TRUE)),
             name = "Deaths per\n100k",
-            palette = "Spectral") +
+            palette = "YlOrRd", direction = 1) +
           theme(legend.position = "right")
       }else{
         DF %>%
@@ -349,7 +429,7 @@ server <- function(input, output, session) {
           {plot_usmap(data=., values = "death_rate")} +
           scale_fill_distiller(
             name = "Deaths per\n100k",
-            palette = "Spectral") +
+            palette = "YlOrRd", direction = 1) +
           theme(legend.position = "right")
       }
     })
@@ -369,45 +449,26 @@ server <- function(input, output, session) {
   #Data Table for demographics (Race, Gender, Age)
   output$dstbl <- renderDataTable({
       if (input$dem == "Age") {
-          df <- fe_df %>%
-              mutate(Age = as.numeric(`Subject's age`)) %>%
-              mutate(Age = cut(
-                  Age, c(0, 15, 35, 65, Inf),
-                  c("0-14", "15-34", "35-64", "65+"))) %>%
-              mutate(Age = fct_explicit_na(Age, "Missing")) %>%
-              group_by(Age) %>%
-              summarize(N=n())
+          df <- ageDF %>%
+              mutate(Age = as.character(Age)) %>%
+              mutate(death_rate = round(death_rate, 2)) %>%
+              mutate(deaths = round(deaths, 2)) %>%
+              mutate(Proportion = round(Proportion, 2))
       }
       else if(input$dem == "Gender") {
-          df <- fe_df %>%
-              mutate(`Subject's gender` = case_when(
-                  is.na(`Subject's gender`) ~ "Missing",
-                  `Subject's gender` == "White" ~ "Missing",
-                  `Subject's gender` == "Transexual" ~ "Transgender",
-                  TRUE ~ `Subject's gender`
-              )) %>%
-              mutate(`Subject's gender` = fct_relevel(
-                  `Subject's gender`, "Missing", after = Inf
-              )) %>%
-              group_by(`Subject's gender`) %>%
-              summarize(N=n())
+          df <- sexDF %>%
+              rename(Gender = Sex) %>%
+              mutate(Gender = as.character(Gender)) %>%
+              mutate(death_rate = round(death_rate, 2)) %>%
+              mutate(deaths = round(deaths, 2)) %>%
+              mutate(Proportion = round(Proportion, 2))
       }
       else {
-          df <- fe_df %>%
-            mutate(`Subject's race with imputations` = case_when(
-                  `Subject's race with imputations` == "NA" ~ "Missing",
-                  is.na(`Subject's race with imputations`) ~ "Missing",
-                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
-                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
-                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
-                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
-                  TRUE ~ `Subject's race with imputations`
-              )) %>%
-              mutate(`Subject's race with imputations` = fct_relevel(
-                  `Subject's race with imputations`, "Missing", after = Inf
-              )) %>%
-              group_by(`Subject's race with imputations`) %>%
-              summarize(N=n())
+          df <- raceDF %>%
+              mutate(Race = as.character(Race)) %>%
+              mutate(death_rate = round(death_rate, 2)) %>%
+              mutate(deaths = round(deaths, 2)) %>%
+              mutate(Proportion = round(Proportion, 2))
       }
       df
   })
@@ -419,6 +480,7 @@ server <- function(input, output, session) {
               ggplot(aes(x=`Subject's age`)) +
               geom_bar() +
               theme_classic() +
+              labs(x="Age", y="Deaths") +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
@@ -427,19 +489,11 @@ server <- function(input, output, session) {
                   title = element_text(size=20))
       }
       else if(input$dem == "Gender") {
-          df <- fe_df %>%
-              mutate(`Subject's gender` = case_when(
-                  is.na(`Subject's gender`) ~ "Missing",
-                  `Subject's gender` == "White" ~ "Missing",
-                  `Subject's gender` == "Transexual" ~ "Transgender",
-                  TRUE ~ `Subject's gender`
-              )) %>%
-              mutate(`Subject's gender` = fct_relevel(
-                  `Subject's gender`, "Missing", after = Inf
-              )) %>%
-              ggplot(aes(x=`Subject's gender`)) +
-              geom_bar() +
+          df <- sexDF %>%
+              ggplot(aes(x=Sex, y=deaths)) +
+              geom_col() +
               theme_classic() +
+              labs(x="Gender", y="Deaths") +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
@@ -448,23 +502,12 @@ server <- function(input, output, session) {
                   title = element_text(size=20))
       }
       else {
-          df <- fe_df %>%
-              mutate(`Subject's race with imputations` = case_when(
-                  `Subject's race with imputations` == "NA" ~ "Missing",
-                  is.na(`Subject's race with imputations`) ~ "Missing",
-                  `Subject's race with imputations` == "HIspanic/Latino" ~ "Hispanic/Latino",
-                  `Subject's race with imputations` == "Middle Eastern" ~ "Other Race",
-                  `Subject's race with imputations` == "European American/White" ~ "European-American/White",
-                  `Subject's race with imputations` == "Race unspecified" ~ "Missing",
-                  TRUE ~ `Subject's race with imputations`
-              )) %>%
-              mutate(`Subject's race with imputations` = fct_relevel(
-                  `Subject's race with imputations`, "Missing", after = Inf
-              )) %>%
-              ggplot(aes(x=`Subject's race with imputations`)) +
-              geom_bar() +
+          df <- raceDF %>%
+              ggplot(aes(x=Race, y=deaths)) +
+              geom_col() +
               theme_classic() +
               theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+              labs(x="Race/Ethnicity", y="Deaths") +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
@@ -476,9 +519,19 @@ server <- function(input, output, session) {
   })
 
   output$felink <- renderUI({
-    tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), "- This data source has been collected since 2000 and is active until present day. As of the month of April there have been a total of 19,856 number of cases that are recorded. This database allows you to go in and download any data needed and also includes visualizations.")
-  })
-
+    tagList(a("Fatal Encounters", href="http://www.fatalencounters.org"), 
+            "- This is a crowd-sourced dataset that was started in 2012, 
+            and has back-filled data to 2000.  The people behind this effort
+            are continuing to add information fields
+            and cases, making this the only actively maintained dataset 
+            with this range of coverage. The dataset is open-source, can be downloaded, and
+            the maintainers encourage corrections and submissions from the public.",
+            p(),
+            p("There is no official government data collected on these fatalities,
+            so the Fatal Encounters dataset is a critical public resource.
+            Please consider donating to the organization that produces it."))  
+    })
 }
+# deleted KBP link
 
 shinyApp(ui, server)

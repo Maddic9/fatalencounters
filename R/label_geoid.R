@@ -10,7 +10,7 @@
 #' @return data.frame like object with values labeled
 #'
 #' @examples
-#' label_geoid(state_total_df)
+#' label_geoid(state_age_df)
 #'
 #' @import dplyr tibble
 #'

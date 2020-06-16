@@ -87,7 +87,9 @@ if(nrow(filter(
             list(
                 geog_levels = list("county", "state"),
                 data_tables = as.list(
-                    str_c("B01001", c("", "B", "C", "D", "E", "G", "H", "I"))
+                    c("B03002",
+                      str_c("B01001", c("", "B", "C", "D", "E", "G", "H", "I"))
+                    )
                 )
             )
         }, simplify = FALSE),
@@ -140,6 +142,7 @@ county_acs_df <- bind_rows(lapply(2016:2018, function(y){
             name = names(sapply(., attr, which = "label")),
             desc = sapply(., attr, which = "label"),
             var = sapply(., attr, which = "var_desc"))} %>%
+        filter(grepl("Sex by Age", var)) %>% 
         mutate(var = str_sub(var, 1, -8)) %>%
         filter(desc != "Total" & desc != "Female" & desc != "Male") %>%
         filter(str_sub(name, -4, -4) == "E") %>%
@@ -165,6 +168,80 @@ county_acs_df <- bind_rows(lapply(2016:2018, function(y){
         select(-name) %>%
         group_by(YEAR, GEOID, Age, Sex, Race) %>%
         summarize(value = sum(value))}))
+
+county_totacs_df <- bind_rows(lapply(2016:2018, function(y){
+    sty <- str_c(y, "_county")
+    
+    ipums_year_df <- tf %>%
+        read_nhgis(data_layer = contains(sty)) %>%
+        set_ipums_var_attributes(
+            read_ipums_codebook(
+                tf,
+                contains(sty)))
+    
+    year_var_df <- ipums_year_df %>%
+        select(-(GISJOIN:NAME_E), -NAME_M) %>%
+        {tibble(
+            name = names(sapply(., attr, which = "label")),
+            desc = sapply(., attr, which = "label"),
+            var = sapply(., attr, which = "var_desc"))} %>%
+        filter(!grepl("Sex by Age", var)) %>%
+        filter(desc != "Total" & desc != "Not Hispanic or Latino") %>%
+        mutate(desc = str_remove(desc, " alone")) %>%
+        mutate(desc = str_remove(desc, "Not Hispanic or Latino: ")) %>%
+        filter(!grepl("Hispanic or Latino: ", desc)) %>%
+        mutate(Race = ifelse(
+            grepl("Two or", desc), "Two or More Races", desc)) %>%
+        filter(str_sub(name, -4, -4) == "E") %>%
+        select(name, Race)
+    
+    ipums_year_df %>%
+        mutate(GEOID = str_c(STATEA, COUNTYA)) %>%
+        select(YEAR, GEOID, STATE, COUNTY, !!year_var_df$name) %>%
+        pivot_longer(!!year_var_df$name) %>%
+        left_join(year_var_df, by = "name") %>%
+        select(-name) %>%
+        group_by(YEAR, GEOID, Race) %>%
+        summarize(value = sum(value))})) %>%
+    ungroup() %>%
+    filter(Race != "Some other race")
+
+state_totacs_df <- bind_rows(lapply(2016:2018, function(y){
+    sty <- str_c(y, "_state")
+    
+    ipums_year_df <- tf %>%
+        read_nhgis(data_layer = contains(sty)) %>%
+        set_ipums_var_attributes(
+            read_ipums_codebook(
+                tf,
+                contains(sty)))
+    
+    year_var_df <- ipums_year_df %>%
+        select(-(GISJOIN:NAME_E), -NAME_M) %>%
+        {tibble(
+            name = names(sapply(., attr, which = "label")),
+            desc = sapply(., attr, which = "label"),
+            var = sapply(., attr, which = "var_desc"))} %>%
+        filter(!grepl("Sex by Age", var)) %>%
+        filter(desc != "Total" & desc != "Not Hispanic or Latino") %>%
+        mutate(desc = str_remove(desc, " alone")) %>%
+        mutate(desc = str_remove(desc, "Not Hispanic or Latino: ")) %>%
+        filter(!grepl("Hispanic or Latino: ", desc)) %>%
+        mutate(Race = ifelse(
+            grepl("Two or", desc), "Two or More Races", desc)) %>%
+        filter(str_sub(name, -4, -4) == "E") %>%
+        select(name, Race)
+    
+    ipums_year_df %>%
+        mutate(GEOID = STATEA) %>%
+        select(YEAR, GEOID, STATE, !!year_var_df$name) %>%
+        pivot_longer(!!year_var_df$name) %>%
+        left_join(year_var_df, by = "name") %>%
+        select(-name) %>%
+        group_by(YEAR, GEOID, Race) %>%
+        summarize(value = sum(value))})) %>%
+    ungroup() %>%
+    filter(Race != "Some other race")
 
 state_acs_df <- bind_rows(lapply(2016:2018, function(y){
     sty <- str_c(y, "_state")
@@ -208,35 +285,116 @@ state_acs_df <- bind_rows(lapply(2016:2018, function(y){
         group_by(YEAR, GEOID, Age, Sex, Race) %>%
         summarize(value = sum(value))}))
 
-full_df <- bind_rows(DF, DF2) %>%
+full_age_df <- bind_rows(DF, DF2) %>%
     rename(GEOID = county, YEAR = year) %>%
     group_by(GEOID, YEAR, Age, Race, Sex) %>%
     summarise_all(sum) %>%
     ungroup() %>%
-    bind_rows(ungroup(county_acs_df)) %>%
-    arrange(GEOID, YEAR, Age, Race, Sex)
+    bind_rows(
+        ungroup(county_acs_df)
+        ) %>%
+    arrange(GEOID, YEAR, Age, Race, Sex) %>%
+    mutate(Race = case_when(
+        Race == "Asian" ~ "Asian/Pacific Islander",
+        Race == "Native Hawaiian and Other Pacific Islander" ~ "Asian/Pacific Islander",
+        Race == "White" ~ "European-American/White",
+        Race == "American Indian and Alaska Native" ~ "Native American/Alaskan",
+        Race == "Black or African American" ~ "African-American/Black",
+        Race == "Hispanic or Latino" ~ "Hispanic/Latino",
+        TRUE ~ Race,
+    )) %>%
+    group_by(GEOID, YEAR, Age, Race, Sex) %>%
+    summarise_all(sum) %>%
+    ungroup()
 
 full_df_state <- bind_rows(DF, DF2) %>%
+    rename(GEOID = county, YEAR = year) %>%
+    mutate(GEOID = str_sub(GEOID, 1, 2)) %>%
+    group_by(GEOID, YEAR, Race) %>%
+    summarize(value = sum(value)) %>%
+    ungroup() %>%
+    bind_rows(ungroup(state_totacs_df)) %>%
+    arrange(GEOID, YEAR, Race) %>%
+    mutate(Race = case_when(
+        Race == "Asian" ~ "Asian/Pacific Islander",
+        Race == "Native Hawaiian and Other Pacific Islander" ~ "Asian/Pacific Islander",
+        Race == "White" ~ "European-American/White",
+        Race == "American Indian and Alaska Native" ~ "Native American/Alaskan",
+        Race == "Black or African American" ~ "African-American/Black",
+        Race == "Hispanic or Latino" ~ "Hispanic/Latino",
+        TRUE ~ Race,
+    )) %>%
+    group_by(GEOID, YEAR, Race) %>%
+    summarize(value = sum(value)) %>%
+    ungroup()
+
+full_df_county <- bind_rows(DF, DF2) %>%
+    rename(GEOID = county, YEAR = year) %>%
+    group_by(GEOID, YEAR, Race) %>%
+    summarize(value = sum(value)) %>%
+    ungroup() %>%
+    bind_rows(ungroup(state_totacs_df)) %>%
+    arrange(GEOID, YEAR, Race) %>%
+    mutate(Race = case_when(
+        Race == "Asian" ~ "Asian/Pacific Islander",
+        Race == "Native HawaiiSome other racean and Other Pacific Islander" ~ "Asian/Pacific Islander",
+        Race == "White" ~ "European-American/White",
+        Race == "American Indian and Alaska Native" ~ "Native American/Alaskan",
+        Race == "Black or African American" ~ "African-American/Black",
+        Race == "Hispanic or Latino" ~ "Hispanic/Latino",
+        TRUE ~ Race,
+    )) %>%
+    group_by(GEOID, YEAR, Race) %>%
+    summarize(value = sum(value)) %>%
+    ungroup()
+
+full_age_df_state <- bind_rows(DF, DF2) %>%
     rename(GEOID = county, YEAR = year) %>%
     mutate(GEOID = str_sub(GEOID, 1, 2)) %>%
     group_by(GEOID, YEAR, Age, Race, Sex) %>%
     summarise_all(sum) %>%
     ungroup() %>%
     bind_rows(ungroup(state_acs_df)) %>%
-    arrange(GEOID, YEAR, Age, Race, Sex)
+    arrange(GEOID, YEAR, Age, Race, Sex) %>%
+    mutate(Race = case_when(
+        Race == "Asian" ~ "Asian/Pacific Islander",
+        Race == "Native Hawaiian and Other Pacific Islander" ~ "Asian/Pacific Islander",
+        Race == "White" ~ "European-American/White",
+        Race == "American Indian and Alaska Native" ~ "Native American/Alaskan",
+        Race == "Black or African American" ~ "African-American/Black",
+        Race == "Hispanic or Latino" ~ "Hispanic/Latino",
+        TRUE ~ Race,
+    )) %>%
+    group_by(GEOID, YEAR, Age, Race, Sex) %>%
+    summarise_all(sum) %>%
+    ungroup()
 
-race_df <- full_df %>%
-    filter(Race != "")
+race_age_df <- full_age_df %>%
+    filter(Race != "" & Race != "Two or More Races") %>%
+    filter(GEOID < 72)
 
-total_df <- full_df %>%
+age_df <- full_age_df %>%
     filter(Race == "") %>%
-    select(-Race)
+    select(-Race) %>%
+    filter(GEOID < 72)
+
+race_df <- full_df_county %>%
+    filter(Race != "" & Race != "Two or More Races") %>%
+    filter(GEOID < 72)
+
+state_race_age_df <- full_age_df_state %>%
+    filter(Race != "" & Race != "Two or More Races") %>%
+    filter(GEOID < 72)
+
+state_age_df <- full_age_df_state %>%
+    filter(Race == "") %>%
+    select(-Race) %>%
+    filter(GEOID < 72)
 
 state_race_df <- full_df_state %>%
-    filter(Race != "")
+    filter(Race != "" & Race != "Two or More Races") %>%
+    filter(GEOID < 72)
 
-state_total_df <- full_df_state %>%
-    filter(Race == "") %>%
-    select(-Race)
-
-use_data(race_df, total_df, state_race_df, state_total_df, overwrite = TRUE)
+use_data(
+    race_df, race_age_df, age_df, 
+    state_race_df, state_race_age_df, state_age_df, overwrite = TRUE)

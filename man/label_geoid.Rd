@@ -17,6 +17,6 @@ Label a US location data set with a GEOID column with appropriate
 state/county names
 }
 \examples{
-label_geoid(state_total_df)
+label_geoid(state_age_df)
 
 }
