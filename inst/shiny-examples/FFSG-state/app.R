@@ -126,6 +126,14 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                   reason it is important to interpret the values, trends and comparisons you observe
                   here with care.  One thing you can be certain of is that the numbers of cases 
                   recorded here are underestimates, we just don't know by how much."),
+               h3("Contact Us:"),
+               tagList(
+                   "If you have suggestions for how to improve this app or see",
+                   " any errors with the data feel free to contact us by ",
+                   " sending an email to ",
+                   a("nmmarquez@protonmail.com", 
+                     href="mailto:nmmarquez@protonmail.com"), 
+                   " with the subject Fatal Encounters App.")
              )
            )
   ),
@@ -175,7 +183,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  tags$div(class="helper-box-small", style="display:none",
                           p("When selected national values are shown in the line graph."))
                ),
-               #Creates plot and table tabs so user can view + scale_colour_manual(values = c("red", "blue", "green"))data in either form
+               #Creates plot and table tabs so user can view data in either form
                mainPanel(tabsetPanel(
                  type = "tabs",
                  tabPanel("plot", plotlyOutput("perCapitaPlot")),
@@ -214,10 +222,40 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                             if the data is missing at
                             random (meaning that each group
                             is just as likely to have been
-                            marked as unspecified) or not.
-                            If not the trends will change."))
+                            marked as unspecified) or not."))
                ),
                mainPanel(dataTableOutput("dstbl"), plotOutput("dsplt"))
+             )
+    ),
+    
+    tabPanel(title= "Circumstances", value="tab4",
+             
+             fluidPage(
+               fluidRow(
+                 column(10,
+                        h1("Circumstances")),
+                 column(2,
+                        icon('question-circle', class='fa-2x helper-btn'),
+                        tags$div(class="helper-box", style="display:none",
+                                 p("Displays the characteristics of the encounter.")),
+                        actionLink('cirleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
+                        actionLink('cirright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), label=NULL)
+                        
+                 )
+               )
+             ),
+             
+             sidebarLayout(
+               sidebarPanel(
+                 selectInput(
+                   "cir", "Circumstance", 
+                   c("Disposition", "Mental Illness", "Cause of Death")),
+                 h6("Events describing the characteristics of an encounter."),
+                 icon('question-circle', class='fa-2x helper-btn-small'),
+                 tags$div(class="helper-box-small", style="display:none",
+                          p("Data excludes instances of fatal encounters where disposition mentioned suicide."))
+               ),
+               mainPanel(dataTableOutput("cirtbl"), plotOutput("cirplt"))
              )
     )
   ),
@@ -226,7 +264,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
   navbarMenu("Maps",
 
              #Choropleth Page
-             tabPanel(title = "Choropleth", value = "tab4",
+             tabPanel(title = "Choropleth", value = "tab5",
 
                       fluidPage(
                         fluidRow(
@@ -251,7 +289,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                       sidebarLayout(
                         sidebarPanel(
                           #displays mean and when selected shows values by year
-                          h5("Map is shown for mean values, to select a year choose Select Year"),
+                          h5("Default map that is shown is for mean values across all years of data, to select a year choose Select Year"),
                           checkboxInput("yearselect", "Select Year", FALSE),
                           conditionalPanel("input.yearselect",
                                            sliderInput("year", "Year", 2000, max(DF$YEAR, na.rm = T),
@@ -265,7 +303,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              ),
 
              #Interactive Map Page
-             tabPanel(title = "Interactive", value = "tab5",
+             tabPanel(title = "Interactive", value = "tab6",
                       fluidPage(
                         fluidRow(
                           column(10,
@@ -308,20 +346,20 @@ server <- function(input, output, session) {
 
   #update active tab in navbar when arrows are clicked
   leftarrowclicks <- reactive({
-    input$abtleft+input$cntleft+input$dsleft+input$cpleft+input$intleft
+    input$abtleft+input$cntleft+input$dsleft+input$cirleft+input$cpleft+input$intleft
   })
   rightarrowclicks <- reactive({
-    input$abtright+input$cntright+input$dsright+input$cpright+input$intright
+    input$abtright+input$cntright+input$dsright+input$cirright+input$cpright+input$intright
   })
   observe({
     if(leftarrowclicks() == 0) {return()}
-    tabOptions <- c('tab1', 'tab2', 'tab3', 'tab4', 'tab5')
+    tabOptions <- c('tab1', 'tab2', 'tab3', 'tab4', 'tab5', 'tab6')
     current <- isolate(which(input$navbar==tabOptions))
     updateTabsetPanel(session, 'navbar', selected=tabOptions[current-1])
   })
   observe({
     if(rightarrowclicks() == 0) {return()}
-    tabOptions <- c('tab1', 'tab2', 'tab3', 'tab4', 'tab5')
+    tabOptions <- c('tab1', 'tab2', 'tab3', 'tab4', 'tab5', 'tab6')
     current <- isolate(which(input$navbar==tabOptions))
     updateTabsetPanel(session, 'navbar', selected=tabOptions[current+1])
   })
@@ -422,14 +460,18 @@ server <- function(input, output, session) {
   #Interactive Leaflet Map
   output$intmap <-
     renderLeaflet({
-        leaflet(data = fe_df, width = "100%") %>% addTiles() %>%
-            addMarkers( ~ as.double(fe_df$Longitude),
-                        ~ as.double(fe_df$Latitude),
+        fe_df %>%
+            # error in lat long here
+            filter(`Subject's name` != "James Edward Blackmon") %>%
+            leaflet(width = "100%") %>% 
+            addTiles() %>%
+            addMarkers( ~ as.double(Longitude),
+                        ~ as.double(Latitude),
                         popup = ~ paste0(
-                            "Name: ", fe_df$`Subject's name`,
-                            "<br><br>City: ", fe_df$`Location of death (city)`,
-                            "<br><br>Description ",fe_df$`Date&Description`),
-                        label = ~ fe_df$`Subject's name`,
+                            "Name: ", `Subject's name`,
+                            "<br><br>City: ", `Location of death (city)`,
+                            "<br><br>Description ",`Date&Description`),
+                        label = ~ `Subject's name`,
                         clusterOptions = markerClusterOptions())
     })
   #Data Table for demographics (Race, Gender, Age)
@@ -502,6 +544,76 @@ server <- function(input, output, session) {
                   title =  element_text(size=20))
       }
       df
+  })
+  
+  #Data Table for demographics (Race, Gender, Age)
+  output$cirtbl <- renderDataTable({
+    if (input$cir == "Disposition") {
+      df <- fe_df_clean %>%
+        group_by(disposition) %>%
+        summarize(Events = n()) %>%
+        rename(`Disposition` = disposition) %>%
+        mutate(Proportion = round(Events / sum(Events), 2))
+    }
+    else if(input$cir == "Mental Illness") {
+      df <- fe_df_clean %>%
+        group_by(mental_illness) %>%
+        summarize(Events = n()) %>%
+        rename(`Mental Illness` = mental_illness) %>%
+        mutate(Proportion = round(Events / sum(Events), 2))
+    }
+    else {
+      df <- fe_df_clean %>%
+        group_by(cod) %>%
+        summarize(Events = n()) %>%
+        rename(`Cause of Death` = cod) %>%
+        mutate(Proportion = round(Events / sum(Events), 2))
+    }
+    df
+  })
+  #Plot for demographics (Race, Gender, Age)
+  output$cirplt <- renderPlot({
+    if (input$cir == "Disposition") {
+      df <- fe_df_clean %>%
+        ggplot(aes(x=disposition)) +
+        geom_bar() +
+        theme_classic() +
+        labs(x="Disposition", y="Events") +
+        theme(
+          legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.text = element_text(size=13),
+          axis.title = element_text(size=17),
+          title = element_text(size=20))
+    }
+    else if(input$cir == "Mental Illness") {
+      df <- fe_df_clean %>%
+        ggplot(aes(x=mental_illness)) +
+        geom_bar() +
+        theme_classic() +
+        labs(x="Mental Illness Assesment", y="Events") +
+        theme(
+          legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.text = element_text(size=13),
+          axis.title = element_text(size=17),
+          title = element_text(size=20))
+    }
+    else {
+      df <- fe_df_clean %>%
+        ggplot(aes(x=cod)) +
+        geom_bar() +
+        theme_classic() +
+        labs(x="Cause of Death", y="Events") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        theme(
+          legend.text = element_text(size=13),
+          legend.title = element_text(size=15),
+          axis.text = element_text(size=13),
+          axis.title = element_text(size=17),
+          title = element_text(size=20))
+    }
+    df
   })
 
   output$felink <- renderUI({

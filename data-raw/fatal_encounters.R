@@ -38,9 +38,7 @@ fe_df_clean <- fe_df %>%
         `Subject's gender` == "Transexual" ~ "Transgender",
         TRUE ~ `Subject's gender`
     )) %>%
-    mutate(`Sex` = fct_relevel(
-        `Sex`, "Missing", after = Inf
-    )) %>%
+    mutate(`Sex` = fct_relevel(`Sex`, "Missing", after = Inf)) %>%
     mutate(Age = cut(
         as.numeric(`Subject's age`),
         c(seq(0, 30, by = 5), seq(35, 85, by = 10), Inf),
@@ -60,11 +58,37 @@ fe_df_clean <- fe_df %>%
                   "Substance use",
                   "Suicide"))
     ) %>%
+    mutate(`Dispositions/Exclusions INTERNAL USE, NOT FOR ANALYSIS` = ifelse(
+        is.na(`Dispositions/Exclusions INTERNAL USE, NOT FOR ANALYSIS`),
+        "Other",
+        `Dispositions/Exclusions INTERNAL USE, NOT FOR ANALYSIS`
+    )) %>%
+    mutate(disposition = fct_collapse(
+        `Dispositions/Exclusions INTERNAL USE, NOT FOR ANALYSIS`,
+        Unreported = "Unreported", Justified = "Justified",
+        `Pending investigation` = "Pending investigation", Criminal = "Criminal",
+        other_level = "Other"
+    )) %>%
+    mutate(mental_illness = ifelse(
+        `Symptoms of mental illness? INTERNAL USE, NOT FOR ANALYSIS` == "Unknown",
+        NA,
+        `Symptoms of mental illness? INTERNAL USE, NOT FOR ANALYSIS`)) %>%
+    mutate(mental_illness = fct_explicit_na(mental_illness, "Missing")) %>%
+    mutate(cod = case_when(
+        is.na(`Cause of death`) ~ "Missing",
+        `Cause of death` == "Undetermined" ~ "Missing",
+        `Cause of death` == "Unknown" ~ "Missing",
+        `Cause of death` == "Other" ~ "Missing",
+        TRUE ~ `Cause of death`, 
+    )) %>%
+    mutate(cod = fct_relevel(cod, "Missing", after = Inf)) %>%
+    mutate(mental_illness = fct_relevel(mental_illness, "Missing", after = Inf)) %>%
+    mutate(state_abb = `Location of death (state)`) %>%
+    mutate(State = state_translate(state_abb)) %>%
     select(
         `Unique ID`, Age, `Subject's name`, Race, Sex, YEAR = `Date (Year)`,
-        state_abb = `Location of death (state)`,
-        County = `Location of death (county)`) %>%
-    mutate(State = state_translate(state_abb))
+        state_abb, State, County = `Location of death (county)`,
+        disposition, mental_illness, cod)
 
 state_fips_df <- "https://en.wikipedia.org/wiki/" %>%
     str_c("Federal_Information_Processing_Standard_state_code") %>%
