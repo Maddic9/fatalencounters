@@ -46,6 +46,20 @@ fe_df_clean <- fe_df %>%
         c(seq(0, 30, by = 5), seq(35, 85, by = 10), Inf),
         right = FALSE)) %>%
     mutate(Age = fct_explicit_na(Age, "Missing")) %>%
+    filter(
+        !(
+            `Dispositions/Exclusions INTERNAL USE, NOT FOR ANALYSIS` %in%
+                c("Drug overdose",
+                  "Murder-suicide",
+                  "Murder/suicide",
+                  "Murder/Suicide",
+                  "Ruled an overdose",
+                  "Ruled natural causes",
+                  "Ruled suicide",
+                  "Ruled Suicide",
+                  "Substance use",
+                  "Suicide"))
+    ) %>%
     select(
         `Unique ID`, Age, `Subject's name`, Race, Sex, YEAR = `Date (Year)`,
         state_abb = `Location of death (state)`,
