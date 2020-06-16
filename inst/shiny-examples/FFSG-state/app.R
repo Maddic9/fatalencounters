@@ -9,18 +9,21 @@ library(usmap)
 library(shiny)
 library(forcats)
 
-DF <- state_total_calculate()
+DF <- state_total_calculate() %>%
+    group_by(YEAR) %>%
+    mutate(`Rank(Rate)` = rank(death_rate, ties.method = "first")) %>%
+    mutate(`Rank(Count)` = rank(deaths, ties.method = "first")) %>%
+    ungroup()
 
 DF <- DF %>%
     group_by(YEAR) %>%
     summarize(
         death_rate = sum(deaths)/ sum(Population) * 100000,
-        deaths = mean(deaths),
-        tot_deaths = sum(deaths),
+        deaths = sum(deaths),
         Population = sum(Population)) %>%
-    mutate(State = "National Average") %>%
+    mutate(State = "United States") %>%
   bind_rows(DF) %>%
-  select(-state_abb, -tot_deaths)
+  select(-state_abb)
 
 raceDF <- state_race_calculate() %>%
     group_by(Race) %>%
@@ -155,14 +158,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
 
              sidebarLayout(
                sidebarPanel(
-                 selectInput("state", "State", c(sort(c(state.name, "District of Columbia")), "National Average"), selected = "Washington"),
-                 checkboxInput("all", "Display with other states", FALSE),
-                 icon('question-circle', class='fa-2x helper-btn-small'),
-                 tags$div(class="helper-box-small", style="display:none",
-                                   p("Selected state is highlighted,
-                                    with the other states and the US average displayed
-                                     in background. (US average is only
-                                     shown for per capita values)")),
+                 selectInput("state", "State", sort(c(state.name, "District of Columbia")), selected = "Washington"),
 
                  checkboxInput("per capita", "Calculate per 100K", TRUE),
                  icon('question-circle', class='fa-2x helper-btn-small'),
@@ -172,12 +168,17 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                                      fatalities per 100K
                                      persons in the population.
                                      Otherwise displays total
-                                     number of fatalities."))
+                                     number of fatalities.")),
+                 
+                 checkboxInput("national", "Include National Values", FALSE),
+                 icon('question-circle', class='fa-2x helper-btn-small'),
+                 tags$div(class="helper-box-small", style="display:none",
+                          p("When selected national values are shown in the line graph."))
                ),
-               #Creates plot and table tabs so user can view data in either form
+               #Creates plot and table tabs so user can view + scale_colour_manual(values = c("red", "blue", "green"))data in either form
                mainPanel(tabsetPanel(
                  type = "tabs",
-                 tabPanel("plot", plotOutput("perCapitaPlot")),
+                 tabPanel("plot", plotlyOutput("perCapitaPlot")),
                  tabPanel("table", dataTableOutput("perCapitaDT"))
                ))
              )
@@ -326,23 +327,22 @@ server <- function(input, output, session) {
   })
 
   #Outputs for tables, plots, and maps
-  #Plot for fatal encounter total or capita values by state
+  #Plot for fatal encounter total or capita values by stateWashington
   output$perCapitaPlot <-
-    renderPlot({
-        if(input$all | input$state == "National Average"){
+    renderPlotly({
           out <- DF %>%
               mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
               mutate(col_ = case_when(
                   State == input$state ~ input$state,
-                  State == "National Average" ~ "National Average",
+                  State == "United States" ~ "United States",
                   TRUE ~ "Other States"
               )) %>%
               mutate(alpha_ = ifelse(
-                  State == input$state | State == "National Average", .9, .6)) %>%
+                  State == input$state | State == "United States", .9, .6)) %>%
               mutate(lw_ = ifelse(State == input$state , "2", "1")) %>%
               mutate(col_ = factor(
-                col_, unique(c("National Average", "Other States", input$state)))) %>%
-              filter(State == input$state | rep(input$all, nrow(.))) %>%
+                col_, unique(c("Other States", input$state, "United States")))) %>%
+              filter(State != "United States" | rep(input$national, nrow(.))) %>% 
               ggplot(aes(
                 x = YEAR, y = out, color = col_, alpha = alpha_, group = State,
                 text = paste0(
@@ -357,61 +357,39 @@ server <- function(input, output, session) {
               labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
                    color="") +
               scale_size_manual( values = c(`2` = 2, `1` = .75)) +
+              scale_colour_manual(values = c("green", "blue", "red")) +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
                   axis.text = element_text(size=13),
                   axis.title = element_text(size=17),
                   title =  element_text(size=20))
-        }
-        else{
-          out <- DF %>%
-            mutate(out = ifelse(rep(input$`per capita`, nrow(.)), death_rate, deaths)) %>%
-            mutate(col_ = case_when(
-              State == input$state ~ input$state,
-              State == "National Average" ~ "National Average",
-              TRUE ~ "Other State"
-            )) %>%
-            mutate(col_ = factor(
-              col_, unique(c("National Average", "Other State", input$state)))) %>%
-            filter(State == input$state | rep(input$all, nrow(.))) %>%
-            ggplot(aes(
-              x = YEAR, y = out, group = State,
-              text = paste0(
-                "State: ", State, "\n",
-                "Year: ", YEAR, "\n",
-                ifelse(input$`per capita`, "Rate per 100k", "Count"), ": ",
-                round(out, 2)))) +
-            geom_line(color="blue") +
-            theme_classic() +
-            guides(alpha=FALSE) +
-            labs(x="Year",
-                 y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
-                 color="") +
-            theme(
-              legend.text = element_text(size=13),
-              legend.title = element_text(size=15),
-              axis.text = element_text(size=13),
-              axis.title = element_text(size=17),
-              title =  element_text(size=20))
-        }
-      out
+      ggplotly(out, tooltip = "text")
     })
   #Data table for fatal encounter total or capita values by state
   output$perCapitaDT <-
     renderDataTable({
-      DF %>%
-        filter(YEAR != 2100) %>%
-        filter(State == input$state | rep(input$all, nrow(.))) %>%
-        mutate(death_rate = round(death_rate, 2)) %>%
-        mutate(deaths = round(deaths, 2))
+        DF %>%
+            filter(State == input$state) %>% 
+            mutate(`Death Rate` = round(death_rate, 2)) %>%
+            mutate(`Death Count` = round(deaths, 2)) %>%
+            select(
+              Year=YEAR, State, `Death Count`, `Death Rate`,
+              `Rank(Count)`, `Rank(Rate)`) %>%
+        left_join(
+            DF %>%
+                filter(State == "United States") %>%
+                mutate(`US Rate` = round(death_rate, 2)) %>%
+                select(Year=YEAR, `US Rate`),
+            by = "Year"
+        )
     })
   #Choropleth Map
   output$choropleth <-
     renderPlot({
       if(input$yearselect){
         DF %>%
-          filter(State != "National Average") %>%
+          filter(State != "United States") %>%
           filter(YEAR == input$year) %>%
           select(death_rate, fips = GEOID) %>%
           {plot_usmap(data=., values = "death_rate")} +
@@ -422,7 +400,7 @@ server <- function(input, output, session) {
           theme(legend.position = "right")
       }else{
         DF %>%
-          filter(State != "National Average") %>%
+          filter(State != "United States") %>%
           group_by(GEOID) %>%
           summarize(death_rate = mean(death_rate, na.rm = TRUE)) %>%
           rename(fips = GEOID) %>%
