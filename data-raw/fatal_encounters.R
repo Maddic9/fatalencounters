@@ -17,7 +17,10 @@ state_translate <- function(x){
 }
 
 fe_df <- read_excel(
-    "~/Downloads/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx")
+    "~/Downloads/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx") %>%
+    mutate(Longitude = as.numeric(Longitude)) %>%
+    mutate(Latitude = as.numeric(Latitude)) %>%
+    mutate(Longitude = ifelse(Longitude > 0, Longitude * -1, Longitude))
 
 fe_df_clean <- fe_df %>%
     mutate(Race = case_when(

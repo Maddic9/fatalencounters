@@ -22,8 +22,8 @@ clean_plotly_leg <- function(.plotly_x) {
 
 DF <- state_total_calculate() %>%
     group_by(YEAR) %>%
-    mutate(`Rank(Rate)` = 51 - rank(death_rate, ties.method = "first")) %>%
-    mutate(`Rank(Count)` = 51 - rank(deaths, ties.method = "first")) %>%
+    mutate(`Rank(Rate)` = rank(-death_rate, ties.method = "first")) %>%
+    mutate(`Rank(Count)` = rank(-deaths, ties.method = "first")) %>%
     ungroup()
 
 DF <- DF %>%
@@ -97,7 +97,9 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  " sending an email to ",
                  a("nmmarquez@protonmail.com", 
                    href="mailto:nmmarquez@protonmail.com"), 
-                 " with the subject Fatal Encounters App."),
+                 " with the subject Fatal Encounters App. If you are code savey you may also leave requests and bug reports at our",
+                 a("github repository.", 
+                   href="https://github.com/nmarquezuw/fatalencounters")),
                
                h3("Data Resources"),
                uiOutput("felink"),
@@ -325,7 +327,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                       fluidPage(
                         fluidRow(
                           column(10,
-                                 h1("Interactive Map")),
+                                 h1("Interactive Map"), h3("(when visible click blue markers for details on case)")),
                           column(2,
                                  icon('question-circle', class='fa-2x helper-btn'),
                                  tags$div(class="helper-box", style="display:none",
@@ -483,7 +485,7 @@ server <- function(input, output, session) {
     renderLeaflet({
         fe_df %>%
             # error in lat long here
-            filter(`Subject's name` != "James Edward Blackmon") %>%
+            # filter(`Subject's name` != "James Edward Blackmon") %>%
             leaflet(width = "100%") %>% 
             addTiles() %>%
             addMarkers( ~ as.double(Longitude),
@@ -524,7 +526,7 @@ server <- function(input, output, session) {
       }
       df
   })
-  #Plot for demographics (Race, Gender, Age)
+  # Plot for demographics (Race, Gender, Age)
   output$dsplt <- renderPlot({
       if (input$dem == "Age") {
           df <- fe_df %>%
@@ -570,7 +572,7 @@ server <- function(input, output, session) {
       df
   })
   
-  #Data Table for incident attributes (Disposition, MI/Alch/DU, COD)
+  # Data Table for incident attributes (Disposition, MI/Alch/DU, COD)
   output$cirtbl <- renderDataTable({
     if (input$cir == "Case Disposition") {
       df <- fe_df_clean %>%
@@ -583,7 +585,7 @@ server <- function(input, output, session) {
       df <- fe_df_clean %>%
         group_by(mental_illness) %>%
         summarize(Events = n()) %>%
-        rename(`Mental Illness` = mental_illness) %>%
+        rename(`Victim Assesment` = mental_illness) %>%
         mutate(Proportion = round(Events / sum(Events), 2))
     }
     else {
