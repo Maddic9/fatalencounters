@@ -8,6 +8,17 @@ library(fatalencounters)
 library(usmap)
 library(shiny)
 library(forcats)
+library(stringr)
+
+clean_plotly_leg <- function(.plotly_x) {
+    for(i in 1: length(.plotly_x)){
+    if ("legendgroup" %in% names(.plotly_x[[i]])) {
+        .plotly_x[[i]]$legendgroup <- str_sub(.plotly_x[[i]]$legendgroup, 4, -2)
+        .plotly_x[[i]]$name <- str_sub(.plotly_x[[i]]$name, 4, -2)
+        } 
+    }
+  .plotly_x
+}
 
 DF <- state_total_calculate() %>%
     group_by(YEAR) %>%
@@ -372,7 +383,7 @@ server <- function(input, output, session) {
   })
 
   #Outputs for tables, plots, and maps
-  #Plot for fatal encounter total or per capita values by stateWashington
+  #Plot for fatal encounter total or per capita values by state
   output$perCapitaPlot <-
     renderPlotly({
           out <- DF %>%
@@ -409,7 +420,10 @@ server <- function(input, output, session) {
                   axis.text = element_text(size=13),
                   axis.title = element_text(size=17),
                   title =  element_text(size=20))
-      ggplotly(out, tooltip = "text")
+      
+      ggpout <- ggplotly(out, tooltip = "text")
+      ggpout$x$data <- clean_plotly_leg(ggpout$x$data)
+      ggpout
     })
   #Data table for fatal encounter total, per capita values and ranks by state
   output$perCapitaDT <-

@@ -73,6 +73,11 @@ fe_df_clean <- fe_df %>%
         `Symptoms of mental illness? INTERNAL USE, NOT FOR ANALYSIS` == "Unknown",
         NA,
         `Symptoms of mental illness? INTERNAL USE, NOT FOR ANALYSIS`)) %>%
+    mutate(mental_illness = case_when(
+        mental_illness == "Yes" ~ "Mental Illness",
+        mental_illness == "No" ~ "Nothing Reported",
+        TRUE ~ mental_illness
+    )) %>%
     mutate(mental_illness = fct_explicit_na(mental_illness, "Missing")) %>%
     mutate(cod = case_when(
         is.na(`Cause of death`) ~ "Missing",
