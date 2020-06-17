@@ -97,7 +97,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                  " sending an email to ",
                  a("nmmarquez@protonmail.com", 
                    href="mailto:nmmarquez@protonmail.com"), 
-                 " with the subject Fatal Encounters App. If you are code savey you may also leave requests and bug reports at our",
+                 " with the subject Fatal Encounters App. If you are code savvy you may also leave requests and bug reports at our",
                  a("github repository.", 
                    href="https://github.com/nmarquezuw/fatalencounters")),
                
