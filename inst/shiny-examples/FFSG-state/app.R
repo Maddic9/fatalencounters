@@ -11,8 +11,8 @@ library(forcats)
 
 DF <- state_total_calculate() %>%
     group_by(YEAR) %>%
-    mutate(`Rank(Rate)` = rank(death_rate, ties.method = "first")) %>%
-    mutate(`Rank(Count)` = rank(deaths, ties.method = "first")) %>%
+    mutate(`Rank(Rate)` = 51 - rank(death_rate, ties.method = "first")) %>%
+    mutate(`Rank(Count)` = 51 - rank(deaths, ties.method = "first")) %>%
     ungroup()
 
 DF <- DF %>%
@@ -78,7 +78,16 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              )),
            sidebarLayout(
              sidebarPanel(
-
+               
+               h3("Contact Us:"),
+               tagList(
+                 "If you have suggestions for how to improve this app or see",
+                 " any errors with the data feel free to contact us by ",
+                 " sending an email to ",
+                 a("nmmarquez@protonmail.com", 
+                   href="mailto:nmmarquez@protonmail.com"), 
+                 " with the subject Fatal Encounters App."),
+               
                h3("Data Resources"),
                uiOutput("felink"),
                #h6("This is a crowd-sourced data set that was started in 2012, and has back-filled data to 2000.  It is the only actively maintained dataset with this range of coverage. This dataset is open-source and can be downloaded.  Please consider donating"),
@@ -114,8 +123,9 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                p(),
                strong("Finally"), 
                ("this is our first draft of the data exploration app.  We are releasing it
-                  so that we can get comments and suggestions from people like you.  Please
-                  stay tuned as it evolves."),
+                  so that we can get comments and suggestions from people like you (use the
+                  'Contact Us'
+                  link in sidebar at left).  Please stay tuned as it evolves."),
                h3("A note on the data:"),
                ("While the Fatal Encounters dataset is the most complete record
                   we have of deaths caused by law enforcement in the US, it is neither complete,
@@ -126,14 +136,7 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                   reason it is important to interpret the values, trends and comparisons you observe
                   here with care.  One thing you can be certain of is that the numbers of cases 
                   recorded here are underestimates, we just don't know by how much."),
-               h3("Contact Us:"),
-               tagList(
-                   "If you have suggestions for how to improve this app or see",
-                   " any errors with the data feel free to contact us by ",
-                   " sending an email to ",
-                   a("nmmarquez@protonmail.com", 
-                     href="mailto:nmmarquez@protonmail.com"), 
-                   " with the subject Fatal Encounters App.")
+              
              )
            )
   ),
@@ -215,29 +218,30 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              sidebarLayout(
                sidebarPanel(
                  selectInput("dem", "Demographic Attribute", c("Race", "Gender", "Age")),
-                 h6("Disclaimer: Please take note that the data on demographic attributes can be missing, especially for race."),
+                 h6("Disclaimer: Note that the data on demographic attributes 
+                    can be missing in the news reports from which some of these data are
+                    drawn.  This mainly affects the race variable: about 25% of cases
+                    are missing race in the original reports.  The Fatal Encounters
+                    dataset provides imputed values for these missing data, and we use
+                    those imputed values here."),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
-                          p("Trends will differ based on
-                            if the data is missing at
-                            random (meaning that each group
-                            is just as likely to have been
-                            marked as unspecified) or not."))
+                          p("Counts/Rates by race include imputed values."))
                ),
                mainPanel(dataTableOutput("dstbl"), plotOutput("dsplt"))
              )
     ),
     
-    tabPanel(title= "Circumstances", value="tab4",
+    tabPanel(title= "Incident Description", value="tab4",
              
              fluidPage(
                fluidRow(
                  column(10,
-                        h1("Circumstances")),
+                        h1("Descriptors")),
                  column(2,
                         icon('question-circle', class='fa-2x helper-btn'),
                         tags$div(class="helper-box", style="display:none",
-                                 p("Displays the characteristics of the encounter.")),
+                                 p("Displays aspects of the incident.")),
                         actionLink('cirleft', class = 'larrow', icon=icon('arrow-left', class='fa-2x'), label=NULL),
                         actionLink('cirright', class = 'rarrow', icon=icon('arrow-right', class='fa-2x'), label=NULL)
                         
@@ -248,12 +252,13 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
              sidebarLayout(
                sidebarPanel(
                  selectInput(
-                   "cir", "Circumstance", 
-                   c("Disposition", "Mental Illness", "Cause of Death")),
-                 h6("Events describing the characteristics of an encounter."),
+                   "cir", "Topic", 
+                   c("Case Disposition", "Crisis/Alcohol/Drugs", "Cause of Death")),
+                 h6("Characteristics of an incident."),
                  icon('question-circle', class='fa-2x helper-btn-small'),
                  tags$div(class="helper-box-small", style="display:none",
-                          p("Data excludes instances of fatal encounters where disposition mentioned suicide."))
+                          p("Data exclude incidents where the cause of death 
+                            mentioned suicide."))
                ),
                mainPanel(dataTableOutput("cirtbl"), plotOutput("cirplt"))
              )
@@ -289,7 +294,9 @@ ui <- navbarPage(title = "FFSG", id = "navbar",
                       sidebarLayout(
                         sidebarPanel(
                           #displays mean and when selected shows values by year
-                          h5("Default map that is shown is for mean values across all years of data, to select a year choose Select Year"),
+                          h5("Initial map shows the mean state rates across all years; 
+                             clicking the `Select Year` box allows you to pick a specific 
+                             year, or to animate the changes over time."),
                           checkboxInput("yearselect", "Select Year", FALSE),
                           conditionalPanel("input.yearselect",
                                            sliderInput("year", "Year", 2000, max(DF$YEAR, na.rm = T),
@@ -365,7 +372,7 @@ server <- function(input, output, session) {
   })
 
   #Outputs for tables, plots, and maps
-  #Plot for fatal encounter total or capita values by stateWashington
+  #Plot for fatal encounter total or per capita values by stateWashington
   output$perCapitaPlot <-
     renderPlotly({
           out <- DF %>%
@@ -389,13 +396,13 @@ server <- function(input, output, session) {
                     ifelse(input$`per capita`, "Rate per 100k", "Count"), ": ",
                     round(out, 2))
                     )) +
-              geom_line(aes(size=lw_)) +
+              geom_line(aes(size=lw_), alpha=0.5) +
               theme_classic() +
               guides(alpha=FALSE, size=FALSE) +
               labs(x="Year", y=ifelse(input$`per capita`, "Rate per 100k", "Count"),
                    color="") +
-              scale_size_manual( values = c(`2` = 2, `1` = .75)) +
-              scale_colour_manual(values = c("green", "blue", "red")) +
+              scale_size_manual( values = c(`2` = 1, `1` = .5)) +
+              scale_colour_manual(values = c("gray85", "steelblue", "orangered4")) +
               theme(
                   legend.text = element_text(size=13),
                   legend.title = element_text(size=15),
@@ -404,7 +411,7 @@ server <- function(input, output, session) {
                   title =  element_text(size=20))
       ggplotly(out, tooltip = "text")
     })
-  #Data table for fatal encounter total or capita values by state
+  #Data table for fatal encounter total, per capita values and ranks by state
   output$perCapitaDT <-
     renderDataTable({
         DF %>%
@@ -421,7 +428,7 @@ server <- function(input, output, session) {
                 select(Year=YEAR, `US Rate`),
             by = "Year"
         )
-    })
+    }, caption = "Ranks:  1=highest, 51=lowest (with DC)")
   #Choropleth Map
   output$choropleth <-
     renderPlotly({
@@ -549,16 +556,16 @@ server <- function(input, output, session) {
       df
   })
   
-  #Data Table for demographics (Race, Gender, Age)
+  #Data Table for incident attributes (Disposition, MI/Alch/DU, COD)
   output$cirtbl <- renderDataTable({
-    if (input$cir == "Disposition") {
+    if (input$cir == "Case Disposition") {
       df <- fe_df_clean %>%
         group_by(disposition) %>%
         summarize(Events = n()) %>%
         rename(`Disposition` = disposition) %>%
         mutate(Proportion = round(Events / sum(Events), 2))
     }
-    else if(input$cir == "Mental Illness") {
+    else if(input$cir == "Crisis/Alcohol/Drugs") {
       df <- fe_df_clean %>%
         group_by(mental_illness) %>%
         summarize(Events = n()) %>%
@@ -574,9 +581,9 @@ server <- function(input, output, session) {
     }
     df
   })
-  #Plot for demographics (Race, Gender, Age)
+  #Plot for incident attributes (Disposition, MI/Alch/DU, COD)
   output$cirplt <- renderPlot({
-    if (input$cir == "Disposition") {
+    if (input$cir == "Case Disposition") {
       df <- fe_df_clean %>%
         ggplot(aes(x=disposition)) +
         geom_bar() +
@@ -589,12 +596,12 @@ server <- function(input, output, session) {
           axis.title = element_text(size=17),
           title = element_text(size=20))
     }
-    else if(input$cir == "Mental Illness") {
+    else if(input$cir == "Crisis/Alcohol/Drugs") {
       df <- fe_df_clean %>%
         ggplot(aes(x=mental_illness)) +
         geom_bar() +
         theme_classic() +
-        labs(x="Mental Illness Assesment", y="Events") +
+        labs(x="Victim Assesment", y="Events") +
         theme(
           legend.text = element_text(size=13),
           legend.title = element_text(size=15),
